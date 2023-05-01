@@ -98,9 +98,13 @@ pub async fn get_csv_errors(
             Err(_) => Some(v.0),
         })
         .collect::<Vec<_>>();
-    let server_removed = get_supported
-        .iter()
-        .map(|v| to_str(v).expect("Cant fail"))
+    let server_removed = get_supported.into_iter().map(|v| to_str(&v));
+    let mut s_r = vec![];
+    for v in server_removed {
+        s_r.push(v?);
+    }
+    let server_removed = s_r
+        .into_iter()
         .filter(|v| !langs.contains(v))
         .collect::<Vec<_>>();
     Ok((missing, server_removed))

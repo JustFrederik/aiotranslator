@@ -264,6 +264,6 @@ impl GoogleTranslator {
             "f.req",
             format!("[[[\"{}\",\"{}\",{},\"{}\"]]]", v1, v2, v3, v4),
         )];
-        serde_urlencoded::to_string(&query).map_err(|v| Error::new("Failed to serialize", v))
+        serde_urlencoded::to_string(query).map_err(|v| Error::new("Failed to serialize", v))
     }
 }

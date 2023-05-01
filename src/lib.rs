@@ -19,7 +19,7 @@ mod tests {
     use crate::translators::dev::{get_csv_errors, get_languages};
     use crate::translators::scrape::papago::PapagoTranslator;
     use crate::translators::tokens::Tokens;
-    use crate::translators::translator_structrue::{TranslatorContext, TranslatorLanguages};
+    use crate::translators::translator_structrue::TranslatorLanguages;
     use crate::translators::{Translator, Translators};
 
     #[test]

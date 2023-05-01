@@ -140,9 +140,7 @@ impl TranslatorLanguages for MyMemoryTranslator {
             return Err(Error::new_option("Failed to find language list"));
         }
         let mut lang_list = lang_list
-            .expect("Checked before")
-            .into_iter()
-            .collect::<std::collections::BTreeSet<&str>>()
+            .ok_or_else(|| Error::new_option("Checked before"))?
             .into_iter()
             .collect::<Vec<&str>>();
         lang_list.sort();
