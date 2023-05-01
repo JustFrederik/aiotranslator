@@ -82,7 +82,7 @@ impl TranslatorNoContext for MyMemoryTranslator {
             text = text[1..text.len() - 1].to_string();
         }
         Ok(TranslationOutput {
-            text: text.to_string(),
+            text,
             lang: Language::Unknown,
         })
     }

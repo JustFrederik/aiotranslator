@@ -31,7 +31,7 @@ impl TranslatorLanguages for DeeplTranslator {
                     "DeepL-Auth-Key {}",
                     auth.deepl_token
                         .as_ref()
-                        .ok_or(Error::new_option("No deepl token"))?
+                        .ok_or_else(|| Error::new_option("No deepl token"))?
                 ),
             )
             .header("accept", "application/json")

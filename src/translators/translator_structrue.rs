@@ -1,6 +1,6 @@
-use std::fmt::{Debug, Formatter};
 use async_trait::async_trait;
 use reqwest::Client;
+use std::fmt::{Debug, Formatter};
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -44,7 +44,7 @@ pub trait TranslatorContext {
         query: &str,
         from: Option<Language>,
         to: &Language,
-        context: &Vec<Context>,
+        context: &[Context],
     ) -> Result<TranslationOutput, Error>;
 
     async fn translate_vec(
@@ -53,7 +53,7 @@ pub trait TranslatorContext {
         query: &[String],
         from: Option<Language>,
         to: &Language,
-        context: &Vec<Context>,
+        context: &[Context],
     ) -> Result<TranslationVecOutput, Error>;
 }
 

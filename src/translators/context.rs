@@ -5,7 +5,7 @@ pub enum Context {
 }
 
 /// Extracts the context for chatgpt from an array of Contexts
-pub fn get_gpt_context(context_data: &Vec<Context>) -> Option<&str> {
+pub fn get_gpt_context(context_data: &[Context]) -> Option<&str> {
     let mut context = None;
     for c in context_data {
         context = match c {

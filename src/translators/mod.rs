@@ -1,9 +1,7 @@
 use std::future::Future;
-use std::path::Path;
 #[cfg(feature = "retries")]
 use std::time::Duration;
 use std::vec;
-use edge_gpt::ConversationStyle;
 
 #[cfg(feature = "retries")]
 use futures::future::FutureExt;
@@ -16,9 +14,7 @@ use crate::detector::{detect_language, Detectors};
 use crate::error::Error;
 use crate::languages::Language;
 use crate::translators::api::chatgpt::ChatGPTModel;
-use crate::translators::chainer::{
-    TranslatorInfo, TranslatorSelectorInfo, TranslatorSelectorInitilized,
-};
+use crate::translators::chainer::{TranslatorSelectorInfo, TranslatorSelectorInitilized};
 use crate::translators::context::Context;
 use crate::translators::tokens::Tokens;
 use crate::translators::translator_initilized::TranslatorInitialized;
@@ -180,7 +176,7 @@ impl Translators {
             TranslatorSelectorInitilized::Selective(v) => v
                 .get(&Language::Unknown)
                 .ok_or_else(|| Error::new_option("No default value set")),
-            _=> Err(Error::new_option("No default"))
+            _ => Err(Error::new_option("No default")),
         }
     }
     /// This will initiliaze the translator Service
@@ -232,13 +228,13 @@ impl Translators {
             }
         };
         match &selector {
-            TranslatorSelectorInfo::Selective(g,def) => {
+            TranslatorSelectorInfo::Selective(g, def) => {
                 for value in g {
                     check_available(&def.to, &def.translator)?;
                     check_available(value.0, value.1)?;
                 }
             }
-            TranslatorSelectorInfo::SelectiveChain(g,def) => {
+            TranslatorSelectorInfo::SelectiveChain(g, def) => {
                 check_available(&def.to, &def.translator)?;
                 for value in g {
                     check_available(value.0, &value.1.translator)?;
@@ -256,7 +252,7 @@ impl Translators {
                 }
             }
         };
-        Ok(TranslatorSelectorInitilized::from_info(selector, tokens, cc, client).await?)
+        TranslatorSelectorInitilized::from_info(selector, tokens, cc, client).await
     }
 
     /// The call to translate a string
@@ -264,7 +260,7 @@ impl Translators {
         &self,
         text: String,
         from: Option<Language>,
-        context_data: &Vec<Context>,
+        context_data: &[Context],
     ) -> Result<Vec<TranslationOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &text)?;
@@ -361,7 +357,7 @@ impl Translators {
         &self,
         query: &str,
         from: Option<Language>,
-        context_data: &Vec<Context>,
+        context_data: &[Context],
         translator: &TranslatorInitialized,
     ) -> Result<TranslationOutput, Error> {
         let req = match &translator.data {
@@ -383,7 +379,7 @@ impl Translators {
         &self,
         queries: Vec<String>,
         from: Option<Language>,
-        context_data: &Vec<Context>,
+        context_data: &[Context],
     ) -> Result<Vec<TranslationVecOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &queries.join("\n"))?;
@@ -423,7 +419,7 @@ impl Translators {
                 };
                 let u = stream::iter(items)
                     .map(|v| async {
-                        self.translate_vec_fetch(&queries, from.clone(), v, context_data)
+                        self.translate_vec_fetch(queries, from.clone(), v, context_data)
                             .await
                     })
                     .buffer_unordered(self.max_sim_conn);
@@ -480,7 +476,7 @@ impl Translators {
         queries: &[String],
         from: Option<Language>,
         translator: &TranslatorInitialized,
-        context_data: &Vec<Context>,
+        context_data: &[Context],
     ) -> Result<TranslationVecOutput, Error> {
         let req = match &translator.data {
             TranslatorDyn::WC(v) => {
@@ -537,7 +533,7 @@ impl Translators {
             TranslatorSelectorInitilized::List(v) => v.iter().for_each(|v| res.push(v)),
             TranslatorSelectorInitilized::Selective(v) => match v.get(lang_iso) {
                 Some(v) => res.push(v),
-                None => res.push(self.get_default_translator()? ),
+                None => res.push(self.get_default_translator()?),
             },
             TranslatorSelectorInitilized::SelectiveChain(v) => {
                 let mut li = lang_iso;

@@ -60,7 +60,9 @@ impl TranslatorInitialized {
             Translator::Papago => TranslatorDyn::NC(Box::new(PapagoTranslator::new())),
             Translator::Youdao => TranslatorDyn::NC(Box::new(YoudaoTranslator::new())),
             Translator::Baidu => TranslatorDyn::NC(Box::new(BaiduTranslator::new())),
-            Translator::EdgeGPT(csc, path) => TranslatorDyn::WC(Box::new(EdgeGpt::new(csc, path).await?)),
+            Translator::EdgeGPT(csc, path) => {
+                TranslatorDyn::WC(Box::new(EdgeGpt::new(csc, path).await?))
+            }
         };
         Ok(Self {
             data,

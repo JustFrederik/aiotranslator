@@ -14,7 +14,7 @@ use crate::translators::translator_structrue::{
 };
 
 /// Chatgpt models like GPT-3
-#[derive(Debug, Copy, Clone, Default, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub enum ChatGPTModel {
     /// Supported models: GPT-3, GPT-3.5-Turbo, GPT-4
     GPT3,
@@ -37,7 +37,7 @@ impl TranslatorContext for ChatGPTTranslator {
         query: &str,
         from: Option<Language>,
         to: &Language,
-        context: &Vec<Context>,
+        context: &[Context],
     ) -> Result<TranslationOutput, Error> {
         let v = self
             .translate_vec(client, &[query.to_string()], from, to, context)
@@ -54,7 +54,7 @@ impl TranslatorContext for ChatGPTTranslator {
         query: &[String],
         _: Option<Language>,
         to: &Language,
-        context: &Vec<Context>,
+        context: &[Context],
     ) -> Result<TranslationVecOutput, Error> {
         let con = get_gpt_context(context);
         let q_s = chatbot::generate_query(query, &to.to_name_str()?, con)?;

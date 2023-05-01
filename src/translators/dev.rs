@@ -41,6 +41,7 @@ pub async fn get_languages(translator: &Translator, tokens: &Tokens) -> Result<V
         Translator::Youdao => YoudaoTranslator::get_languages(&client, tokens).await,
         #[cfg(feature = "baidu-scrape")]
         Translator::Baidu => BaiduTranslator::get_languages(&client, tokens).await,
+        Translator::EdgeGPT(_, _) => Ok(vec![]),
     }
 }
 
@@ -53,7 +54,7 @@ pub async fn get_csv_errors(
     let to_str = |v: &Language| -> Result<String, Error> {
         match &translator {
             Translator::Deepl => v.to_deepl_str(),
-            Translator::ChatGPT(_, _, _, _) => Err(Error::new_option(
+            Translator::ChatGPT(_, _, _, _) | Translator::EdgeGPT(_, _) => Err(Error::new_option(
                 "ChatGPT does not support language detection",
             )),
             Translator::Google => v.to_google_str(),
@@ -79,7 +80,7 @@ pub async fn get_csv_errors(
     };
     let get_supported = match translator {
         Translator::Deepl => Language::get_supported_deepl(),
-        Translator::ChatGPT(_, _, _, _) => vec![],
+        Translator::ChatGPT(_, _, _, _) | Translator::EdgeGPT(_, _) => vec![],
         Translator::Google => Language::get_supported_google(),
         Translator::Bing => Language::get_supported_bing(),
         Translator::LibreTranslate => Language::get_supported_libretranslate(),

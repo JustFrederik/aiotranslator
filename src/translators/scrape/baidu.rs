@@ -71,7 +71,7 @@ impl TranslatorLanguages for BaiduTranslator {
             .captures(&js_html)
             .ok_or_else(|| Error::new_option("Failed captures"))?
             .get(1)
-            .ok_or(Error::new_option("Failed to get 1"))?
+            .ok_or_else(|| Error::new_option("Failed to get 1"))?
             .as_str();
         let lang_str = lang_str[8..lang_str.len() - 3].to_string();
 

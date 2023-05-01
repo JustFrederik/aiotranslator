@@ -7,7 +7,7 @@ use crate::translators::translator_structrue::TranslationVecOutput;
 /// extract translations from response
 pub fn process_result(s: String, queries: &[String]) -> Result<TranslationVecOutput, Error> {
     let mut translated = HashMap::new();
-    for x in s.split('\n').filter(|v|v.contains(": ")) {
+    for x in s.split('\n').filter(|v| v.contains(": ")) {
         let splitter = x.split_once(": ");
         let value = match splitter {
             Some(v) => Ok(v),

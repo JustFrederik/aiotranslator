@@ -83,7 +83,7 @@ impl TranslatorNoContext for GoogleTranslator {
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let vv = self.fetch(client, from, &to, &query.join("\\n")).await?;
+        let vv = self.fetch(client, from, to, &query.join("\\n")).await?;
         let language = vv
             .last()
             .ok_or_else(|| Error::new_option("No language found"))?

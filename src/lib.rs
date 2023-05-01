@@ -7,10 +7,9 @@ pub mod translators;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use dotenv::dotenv;
-    use edge_gpt::ConversationStyle;
     use reqwest::Client;
+    use std::collections::HashMap;
 
     use crate::detector;
     use crate::detector::Detectors;
@@ -44,10 +43,13 @@ mod tests {
         dotenv().ok();
         let mut hashmap = HashMap::new();
         hashmap.insert(Language::Chinese, Translator::Papago);
-        let selector = TranslatorSelectorInfo::Selective(hashmap,  TranslatorInfo {
-            translator: Translator::Google,
-            to: Language::English,
-        });
+        let selector = TranslatorSelectorInfo::Selective(
+            hashmap,
+            TranslatorInfo {
+                translator: Translator::Google,
+                to: Language::English,
+            },
+        );
         let v = Translators::new(
             Some(Tokens::get_env().unwrap()),
             selector,
