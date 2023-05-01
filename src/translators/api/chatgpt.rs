@@ -3,7 +3,8 @@ use chatgpt::client::ChatGPT;
 use chatgpt::config::{ChatGPTEngine, ModelConfiguration, OldChatGPTEngine, OldModelConfiguration};
 use chatgpt::prelude::ChatMessage;
 use chatgpt::types::{CompletionResponse, Role};
-use reqwest::Client;
+use reqwest::{Client, Url};
+use std::str::FromStr;
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -82,14 +83,16 @@ impl ChatGPTTranslator {
         old_proxy: &str,
         temperature: f32,
     ) -> Result<Self, Error> {
-        let url = match proxy {
-            "" => "https://api.openai.com/v1/chat/completions".to_string(),
-            _ => proxy.to_string(),
-        };
-        let oldurl = match old_proxy {
-            "" => "https://api.openai.com/v1/completions".to_string(),
-            _ => old_proxy.to_string(),
-        };
+        let url = Url::from_str(match proxy {
+            "" => "https://api.openai.com/v1/chat/completions",
+            _ => proxy,
+        })
+        .map_err(|e| Error::new("Failed to parse url", e))?;
+        let oldurl = Url::from_str(match old_proxy {
+            "" => "https://api.openai.com/v1/completions",
+            _ => old_proxy,
+        })
+        .map_err(|e| Error::new("Failed to parse url", e))?;
         let client = match model {
             ChatGPTModel::GPT3 => {
                 let config = OldModelConfiguration {
