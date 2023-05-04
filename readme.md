@@ -1,5 +1,3 @@
-Sure, here's a sample README.md for your Rust library that translates text and supports various translation methods:
-
 # Rust Text Translation Library
 
 This Rust library provides a simple and easy-to-use interface for translating text. It can be used to chain
