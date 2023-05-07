@@ -42,6 +42,7 @@ fn register(mm: &mut ModelManager) {
 #[cfg(test)]
 mod tests {
     use dotenv::dotenv;
+    #[cfg(feature = "offline_req")]
     use model_manager::model_manager::ModelManager;
     use reqwest::Client;
     use std::collections::HashMap;
@@ -56,9 +57,12 @@ mod tests {
     use crate::translators::tokens::Tokens;
     use crate::translators::translator_structrue::TranslatorLanguages;
     use crate::translators::{Translator, Translators};
-    use crate::{detector, register};
+    use crate::detector;
+    #[cfg(feature = "offline_req")]
+    use crate::register;
 
     #[tokio::test]
+    #[cfg(feature = "offline_req")]
     async fn models() {
         let mut mm = ModelManager::new().unwrap();
         register(&mut mm);
