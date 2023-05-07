@@ -28,7 +28,7 @@ mod chatbot;
 pub mod context;
 pub mod dev;
 mod helpers;
-mod offline;
+pub mod offline;
 pub mod scrape;
 pub mod tokens;
 mod translator_initilized;
@@ -265,7 +265,7 @@ impl Translators {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &text)?;
         let from = match add_from_lang {
-            true => Some(lang.clone()),
+            true => Some(lang),
             false => None,
         };
         let chain = self.get_translator_chain(&lang)?;
@@ -288,7 +288,7 @@ impl Translators {
                         if v.lang == Language::Unknown {
                             v.lang = detect_language(&v.text, &self.detector)?;
                         }
-                        (v.text.to_string(), Some(v.lang.clone()))
+                        (v.text.to_string(), Some(v.lang))
                     }
                     false => (
                         translations
@@ -296,15 +296,12 @@ impl Translators {
                             .ok_or_else(|| Error::new_option("initial translation value not set"))?
                             .text
                             .to_string(),
-                        from.clone(),
+                        from,
                     ),
                 };
 
                 let u = stream::iter(items)
-                    .map(|v| async {
-                        self.translate_fetch(&queries, from.clone(), context_data, v)
-                            .await
-                    })
+                    .map(|v| async { self.translate_fetch(&queries, from, context_data, v).await })
                     .buffer_unordered(self.max_sim_conn);
                 let v = u.collect::<Vec<Result<TranslationOutput, Error>>>().await;
                 for value in v {
@@ -321,7 +318,7 @@ impl Translators {
                             if v.lang == Language::Unknown {
                                 v.lang = detect_language(&v.text, &self.detector)?;
                             }
-                            (v.text.to_string(), Some(v.lang.clone()))
+                            (v.text.to_string(), Some(v.lang))
                         }
                         _ => (
                             translations
@@ -329,7 +326,7 @@ impl Translators {
                                 .ok_or_else(|| Error::new_option("No translation value set"))?
                                 .text
                                 .to_string(),
-                            from.clone(),
+                            from,
                         ),
                     };
 
@@ -340,7 +337,7 @@ impl Translators {
                     if translations.len() == 1 {
                         if let Some(v) = translations.last_mut() {
                             if v.lang == Language::Unknown && text.lang != Language::Unknown {
-                                v.lang = text.lang.clone();
+                                v.lang = text.lang;
                             }
                         }
                     }
@@ -370,7 +367,7 @@ impl Translators {
 
         Ok(TranslationOutput {
             text: text.text,
-            lang: translator.to.clone(),
+            lang: translator.to,
         })
     }
 
@@ -384,7 +381,7 @@ impl Translators {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &queries.join("\n"))?;
         let from = match add_from_lang {
-            true => Some(lang.clone()),
+            true => Some(lang),
             false => None,
         };
         let chain = self.get_translator_chain(&lang)?;
@@ -407,19 +404,19 @@ impl Translators {
                         if v.lang == Language::Unknown {
                             v.lang = detect_language(&v.text.join("\n"), &self.detector)?;
                         }
-                        (&v.text, Some(v.lang.clone()))
+                        (&v.text, Some(v.lang))
                     }
                     false => (
                         &translations
                             .first()
                             .ok_or_else(|| Error::new_option("initial translation value not set"))?
                             .text,
-                        from.clone(),
+                        from,
                     ),
                 };
                 let u = stream::iter(items)
                     .map(|v| async {
-                        self.translate_vec_fetch(queries, from.clone(), v, context_data)
+                        self.translate_vec_fetch(queries, from, v, context_data)
                             .await
                     })
                     .buffer_unordered(self.max_sim_conn);
@@ -440,7 +437,7 @@ impl Translators {
                             if v.lang == Language::Unknown {
                                 v.lang = detect_language(&v.text.join("\n"), &self.detector)?;
                             }
-                            (&v.text, Some(v.lang.clone()))
+                            (&v.text, Some(v.lang))
                         }
                         _ => (
                             &translations
@@ -449,7 +446,7 @@ impl Translators {
                                     Error::new_option("initial translation value not set")
                                 })?
                                 .text,
-                            from.clone(),
+                            from,
                         ),
                     };
 
@@ -459,7 +456,7 @@ impl Translators {
                     if translations.len() == 1 {
                         if let Some(v) = translations.last_mut() {
                             if v.lang == Language::Unknown && text.lang != Language::Unknown {
-                                v.lang = text.lang.clone();
+                                v.lang = text.lang;
                             }
                         }
                     }

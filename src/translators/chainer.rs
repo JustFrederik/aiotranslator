@@ -132,7 +132,7 @@ async fn convert_selective_hashmap(
             TranslatorInitialized::new(
                 TranslatorInfo {
                     translator: value,
-                    to: to.clone(),
+                    to: *to,
                 },
                 tokens,
                 client,
