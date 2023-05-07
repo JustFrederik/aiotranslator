@@ -58,10 +58,10 @@ scraper = ["bing-scrape", "papago-scrape", "youdao-scrape", "baidu-scrape", "goo
 
 online = ["api", "scraper"]
 
-
-jparacrawl = ["dep:sentencepiece", "dep:model-manager", "dep:pyo3"]
-jparacrawlbig = ["dep:sentencepiece", "dep:model-manager", "dep:pyo3"]
-sugoi = ["dep:sentencepiece", "dep:model-manager", "dep:pyo3", "dep:regex"]
+offline_req = ["dep:sentencepiece", "dep:model-manager", "dep:pyo3"]
+jparacrawl = ["offline_req"]
+jparacrawlbig = ["offline_req"]
+sugoi = ["offline_req", "dep:regex"]
 
 offline = ["jparacrawl", "jparacrawlbig", "sugoi"]
 

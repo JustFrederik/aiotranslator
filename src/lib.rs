@@ -1,6 +1,10 @@
+#[cfg(feature = "offline_req")]
 use model_manager::model_manager::{Model, ModelManager};
+#[cfg(feature = "offline_req")]
 use std::collections::HashMap;
+#[cfg(feature = "offline_req")]
 use std::path::PathBuf;
+#[cfg(feature = "offline_req")]
 use std::str::FromStr;
 
 pub mod detector;
@@ -11,6 +15,7 @@ mod languages;
 pub mod translators;
 
 #[allow(dead_code)]
+#[cfg(feature = "offline_req")]
 fn register(mm: &mut ModelManager) {
     let mut models = HashMap::new();
     #[cfg(feature = "jparacrawl")]
