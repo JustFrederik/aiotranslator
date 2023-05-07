@@ -124,7 +124,7 @@ impl Records {
         file.write_all(b"///This file is auto generated.\n\n")?;
         file.write_all(b"use crate::error::Error;\n")?;
         file.write_all(b"use std::str::FromStr;\n")?;
-        file.write_all(b"#[derive(PartialEq, Eq, Hash, Clone, Debug)]\n")?;
+        file.write_all(b"#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]\n")?;
         file.write_all(b"pub ")?;
         file.write_all(scope.to_string().as_bytes())?;
         Ok(())

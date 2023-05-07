@@ -1,7 +1,7 @@
 ///This file is auto generated.
 use crate::error::Error;
 use std::str::FromStr;
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug, Copy)]
 pub enum Language {
     /// Code: ach
     Acoli,
