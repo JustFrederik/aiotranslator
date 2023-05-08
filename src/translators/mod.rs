@@ -5,6 +5,7 @@ use std::vec;
 
 #[cfg(feature = "retries")]
 use futures::future::FutureExt;
+#[cfg(not(feature = "offline_req"))]
 use futures::{stream, StreamExt};
 use reqwest::Client;
 use strum::IntoEnumIterator;
@@ -16,6 +17,8 @@ use crate::languages::Language;
 use crate::translators::api::chatgpt::ChatGPTModel;
 use crate::translators::chainer::{TranslatorSelectorInfo, TranslatorSelectorInitilized};
 use crate::translators::context::Context;
+#[cfg(feature = "offline_req")]
+use crate::translators::offline::ctranslate2::model_management::Models;
 use crate::translators::tokens::Tokens;
 use crate::translators::translator_initilized::TranslatorInitialized;
 use crate::translators::translator_structrue::{
@@ -183,8 +186,8 @@ impl Translators {
     pub async fn new(
         tokens: Option<Tokens>,
         selector: TranslatorSelectorInfo,
-        retry_delay: Option<Duration>,
-        retry_count: Option<u32>,
+        #[cfg(feature = "retries")] retry_delay: Option<Duration>,
+        #[cfg(feature = "retries")] retry_count: Option<u32>,
         detector: Detectors,
     ) -> Result<Self, Error> {
         let client = Default::default();
@@ -261,6 +264,7 @@ impl Translators {
         text: String,
         from: Option<Language>,
         context_data: &[Context],
+        #[cfg(feature = "offline_req")] models: &mut Models,
     ) -> Result<Vec<TranslationOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &text)?;
@@ -300,10 +304,22 @@ impl Translators {
                     ),
                 };
 
+                //TODO: replace with multithreaded version
+                #[cfg(not(feature = "offline_req"))]
                 let u = stream::iter(items)
                     .map(|v| async { self.translate_fetch(&queries, from, context_data, v).await })
                     .buffer_unordered(self.max_sim_conn);
+                #[cfg(not(feature = "offline_req"))]
                 let v = u.collect::<Vec<Result<TranslationOutput, Error>>>().await;
+                #[cfg(feature = "offline_req")]
+                let mut v = vec![];
+                #[cfg(feature = "offline_req")]
+                for item in items {
+                    v.push(
+                        self.translate_fetch(&queries, from, context_data, item, models)
+                            .await,
+                    );
+                }
                 for value in v {
                     translations.push(value?);
                 }
@@ -329,11 +345,14 @@ impl Translators {
                             from,
                         ),
                     };
-
+                    #[cfg(feature = "offline_req")]
+                    let text = self
+                        .translate_fetch(&query, from, context_data, translator, models)
+                        .await?;
+                    #[cfg(not(feature = "offline_req"))]
                     let text = self
                         .translate_fetch(&query, from, context_data, translator)
                         .await?;
-
                     if translations.len() == 1 {
                         if let Some(v) = translations.last_mut() {
                             if v.lang == Language::Unknown && text.lang != Language::Unknown {
@@ -356,14 +375,20 @@ impl Translators {
         from: Option<Language>,
         context_data: &[Context],
         translator: &TranslatorInitialized,
+        #[cfg(feature = "offline_req")] models: &mut Models,
     ) -> Result<TranslationOutput, Error> {
-        let req = match &translator.data {
+        let text = match &translator.data {
             TranslatorDyn::WC(v) => {
-                v.translate(&self.client, query, from, &translator.to, context_data)
+                self.retry(v.translate(&self.client, query, from, &translator.to, context_data))
+                    .await?
             }
-            TranslatorDyn::NC(v) => v.translate(&self.client, query, from, &translator.to),
+            TranslatorDyn::NC(v) => {
+                self.retry(v.translate(&self.client, query, from, &translator.to))
+                    .await?
+            }
+            #[cfg(feature = "offline_req")]
+            TranslatorDyn::Of(v) => v.translate(models, query, from, &translator.to)?,
         };
-        let text = self.retry(req).await?;
 
         Ok(TranslationOutput {
             text: text.text,
@@ -377,6 +402,7 @@ impl Translators {
         queries: Vec<String>,
         from: Option<Language>,
         context_data: &[Context],
+        #[cfg(feature = "offline_req")] models: &mut Models,
     ) -> Result<Vec<TranslationVecOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &queries.join("\n"))?;
@@ -414,15 +440,27 @@ impl Translators {
                         from,
                     ),
                 };
+                //TODO: replace with multithreaded version
+                #[cfg(not(feature = "offline_req"))]
                 let u = stream::iter(items)
                     .map(|v| async {
                         self.translate_vec_fetch(queries, from, v, context_data)
                             .await
                     })
                     .buffer_unordered(self.max_sim_conn);
+                #[cfg(not(feature = "offline_req"))]
                 let v = u
                     .collect::<Vec<Result<TranslationVecOutput, Error>>>()
                     .await;
+                #[cfg(feature = "offline_req")]
+                let mut v = vec![];
+                #[cfg(feature = "offline_req")]
+                for item in items {
+                    v.push(
+                        self.translate_vec_fetch(queries, from, item, context_data, models)
+                            .await,
+                    );
+                }
                 for value in v {
                     translations.push(value?);
                 }
@@ -449,7 +487,11 @@ impl Translators {
                             from,
                         ),
                     };
-
+                    #[cfg(feature = "offline_req")]
+                    let text = self
+                        .translate_vec_fetch(queries, from, translator, context_data, models)
+                        .await?;
+                    #[cfg(not(feature = "offline_req"))]
                     let text = self
                         .translate_vec_fetch(queries, from, translator, context_data)
                         .await?;
@@ -474,14 +516,26 @@ impl Translators {
         from: Option<Language>,
         translator: &TranslatorInitialized,
         context_data: &[Context],
+        #[cfg(feature = "offline_req")] models: &mut Models,
     ) -> Result<TranslationVecOutput, Error> {
-        let req = match &translator.data {
+        match &translator.data {
             TranslatorDyn::WC(v) => {
-                v.translate_vec(&self.client, queries, from, &translator.to, context_data)
+                self.retry(v.translate_vec(
+                    &self.client,
+                    queries,
+                    from,
+                    &translator.to,
+                    context_data,
+                ))
+                .await
             }
-            TranslatorDyn::NC(v) => v.translate_vec(&self.client, queries, from, &translator.to),
-        };
-        self.retry(req).await
+            TranslatorDyn::NC(v) => {
+                self.retry(v.translate_vec(&self.client, queries, from, &translator.to))
+                    .await
+            }
+            #[cfg(feature = "offline_req")]
+            TranslatorDyn::Of(v) => v.translate_vec(models, queries, from, &translator.to),
+        }
     }
 
     /// Function to retry on error

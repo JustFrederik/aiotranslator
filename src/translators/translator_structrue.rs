@@ -1,11 +1,39 @@
+use std::fmt::{Debug, Formatter};
+
 use async_trait::async_trait;
 use reqwest::Client;
-use std::fmt::{Debug, Formatter};
 
 use crate::error::Error;
 use crate::languages::Language;
 use crate::translators::context::Context;
+#[cfg(feature = "offline_req")]
+use crate::translators::offline::ctranslate2::model_management::Models;
 use crate::translators::tokens::Tokens;
+
+#[cfg(feature = "offline_req")]
+pub trait TranslatorCTranslate {
+    fn translate(
+        &self,
+        models: &mut Models,
+        query: &str,
+        from: Option<Language>,
+        to: &Language,
+    ) -> Result<TranslationOutput, Error> {
+        let mut temp = self.translate_vec(models, &[query.to_string()], from, to)?;
+        Ok(TranslationOutput {
+            text: temp.text.remove(0),
+            lang: temp.lang,
+        })
+    }
+
+    fn translate_vec(
+        &self,
+        models: &mut Models,
+        query: &[String],
+        from: Option<Language>,
+        to: &Language,
+    ) -> Result<TranslationVecOutput, Error>;
+}
 
 #[async_trait]
 pub trait TranslatorNoContext {
@@ -60,6 +88,8 @@ pub trait TranslatorContext {
 pub enum TranslatorDyn {
     WC(Box<dyn TranslatorContext>),
     NC(Box<dyn TranslatorNoContext>),
+    #[cfg(feature = "offline_req")]
+    Of(Box<dyn TranslatorCTranslate>),
 }
 
 impl Debug for TranslatorDyn {

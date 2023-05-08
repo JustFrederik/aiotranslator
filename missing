@@ -25,3 +25,13 @@ bing:
     "sr-Cyrl"
     "sr-Latn"
     "tlh-Latn"
+
+nllb:
+    ace_Latn
+    azj_Latn
+    bjn_Latn
+    zho_Hans
+    knc_Latn
+    taq_Latn
+    kas_Deva
+

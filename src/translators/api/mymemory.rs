@@ -141,8 +141,7 @@ impl TranslatorLanguages for MyMemoryTranslator {
         }
         let mut lang_list = lang_list
             .ok_or_else(|| Error::new_option("Checked before"))?
-            .into_iter()
-            .collect::<Vec<&str>>();
+            .collect::<Vec<_>>();
         lang_list.sort();
         lang_list.dedup();
         Ok(lang_list.iter().map(|l| l.to_string()).collect())

@@ -4,5 +4,9 @@ pub mod ctranslate2;
 pub mod jparacrawl;
 #[cfg(feature = "jparacrawlbig")]
 pub mod jparacrawlbig;
+#[cfg(feature = "m2m100_12b")]
+pub mod m2m100_12b;
+#[cfg(feature = "m2m100_418m")]
+pub mod m2m100_418m;
 #[cfg(feature = "sugoi")]
 pub mod sugoi;

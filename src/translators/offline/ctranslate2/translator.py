@@ -16,5 +16,5 @@ def output_to_str_arr(results) -> List[str]:
     return [x.hypotheses[0] for x in results]
 
 
-def translate(translator, sources: List[List[str]]):
-    return translator.translate_batch(source=sources)
+def translate(translator, sources: List[List[str]], target_prefix: List[List[str]]):
+    return translator.translate_batch(source=sources, target_prefix=target_prefix)

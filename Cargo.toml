@@ -62,8 +62,10 @@ offline_req = ["dep:sentencepiece", "dep:model-manager", "dep:pyo3"]
 jparacrawl = ["offline_req"]
 jparacrawlbig = ["offline_req"]
 sugoi = ["offline_req", "dep:regex"]
+m2m100_12b = ["offline_req"]
+m2m100_418m = ["offline_req"]
 
-offline = ["jparacrawl", "jparacrawlbig", "sugoi"]
+offline = ["jparacrawl", "jparacrawlbig", "sugoi", "m2m100_418m", "m2m100_12b"]
 
 all-translators = ["online", "offline"]
 

@@ -1,11 +1,12 @@
 #[cfg(feature = "offline_req")]
-use model_manager::model_manager::{Model, ModelManager};
-#[cfg(feature = "offline_req")]
 use std::collections::HashMap;
 #[cfg(feature = "offline_req")]
 use std::path::PathBuf;
 #[cfg(feature = "offline_req")]
 use std::str::FromStr;
+
+#[cfg(feature = "offline_req")]
+use model_manager::model_manager::{Model, ModelManager};
 
 pub mod detector;
 pub mod error;
@@ -36,20 +37,34 @@ fn register(mm: &mut ModelManager) {
         directory: PathBuf::from_str("translators/sugoi").unwrap(),
         version: 4.0,
     });
+    models.insert("M2M100 418m".to_string(), Model{
+        url: "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/m2m100_418m_ct2.zip".to_string(),
+        directory: PathBuf::from_str("translators/m2m100/418m").unwrap(),
+        version: 0.01,
+    });
+    models.insert("M2M100 1.2b".to_string(), Model{
+        url: "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/m2m100_12b_ct2.zip".to_string(),
+        directory: PathBuf::from_str("translators/m2m100/1.2b").unwrap(),
+        version: 0.01,
+    });
     mm.register_models(models);
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use dotenv::dotenv;
     #[cfg(feature = "offline_req")]
     use model_manager::model_manager::ModelManager;
     use reqwest::Client;
-    use std::collections::HashMap;
 
+    use crate::detector;
     use crate::detector::Detectors;
     use crate::generator::Records;
     use crate::languages::Language;
+    #[cfg(feature = "offline_req")]
+    use crate::register;
     use crate::translators::chainer::{TranslatorInfo, TranslatorSelectorInfo};
     use crate::translators::context::Context;
     use crate::translators::dev::{get_csv_errors, get_languages};
@@ -57,9 +72,6 @@ mod tests {
     use crate::translators::tokens::Tokens;
     use crate::translators::translator_structrue::TranslatorLanguages;
     use crate::translators::{Translator, Translators};
-    use crate::detector;
-    #[cfg(feature = "offline_req")]
-    use crate::register;
 
     #[tokio::test]
     #[cfg(feature = "offline_req")]
@@ -136,9 +148,9 @@ mod tests {
         let vv = PapagoTranslator::get_languages(&Client::new(), &Tokens::get_env().unwrap())
             .await
             .unwrap();
-        println!("{:?}", vv);
+        //println!("{:?}", vv);
         let mut v = Records::new().unwrap();
-        v.add_line("papago", &vv);
+        // v.add_line("nllb", &vv);
         v.write_file("test.csv").expect("TODO: panic message");
     }
 

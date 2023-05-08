@@ -32,6 +32,15 @@ impl Records {
     pub fn add_line(&mut self, header: &str, values: &[String]) {
         self.headers.push(header.to_string());
         for row in self.records.iter_mut() {
+            // let mut pushthis = None;
+            // for v in values {
+            //     let v_short = v.split('_').collect::<Vec<_>>().first().unwrap().to_string();
+            //     if row.contains(&Some(v_short)){
+            //         pushthis = Some(v.to_string());
+            //         break;
+            //     }
+            // }
+            // row.push(pushthis);
             let v = values
                 .iter()
                 .find(|value| row.contains(&Some(value.to_string())))
@@ -83,6 +92,7 @@ impl Records {
         func.line("match s {");
 
         for record in &self.records {
+            println!("{:?}", record[0].as_ref());
             let enum_name = Self::format_to_enum(record[0].as_ref().unwrap());
             let mut var = Variant::new(&enum_name);
             var.annotation(&format!("/// Code: {}", record[1].as_ref().unwrap()));
@@ -152,7 +162,7 @@ impl Records {
 
 fn generate_to_string_function(name: &str, f: &[(String, String)]) -> Function {
     let mut v = Function::new(name);
-    v.arg_ref_self();
+    v.arg_self();
     v.vis("pub");
     v.ret("Result<String, Error>");
     v.line("match self {");
