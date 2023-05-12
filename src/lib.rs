@@ -25,7 +25,6 @@ mod tests {
     use crate::translators::chainer::{TranslatorInfo, TranslatorSelectorInfo};
     use crate::translators::context::Context;
     use crate::translators::dev::{get_csv_errors, get_languages};
-    use crate::translators::offline::ctranslate2::model_management::ModelLifetime;
     use crate::translators::scrape::papago::PapagoTranslator;
     use crate::translators::tokens::Tokens;
     use crate::translators::translator_structure::TranslatorLanguages;
@@ -83,7 +82,6 @@ mod tests {
                 "Hello world".to_string(),
                 None,
                 &[chatgpt_context],
-                &mut Models::new(ModelLifetime::KeepAlive),
             )
             .await
             .unwrap();
@@ -92,7 +90,6 @@ mod tests {
                 vec!["Hello world".to_string(), "This is a test".to_string()],
                 None,
                 &[],
-                &mut Models::new(ModelLifetime::KeepAlive),
             )
             .await
             .unwrap();
