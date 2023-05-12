@@ -13,7 +13,7 @@ use crate::translators::scrape::google::GoogleTranslator;
 use crate::translators::scrape::papago::PapagoTranslator;
 use crate::translators::scrape::youdao::YoudaoTranslator;
 use crate::translators::tokens::Tokens;
-use crate::translators::translator_structrue::TranslatorLanguages;
+use crate::translators::translator_structure::TranslatorLanguages;
 use crate::translators::Translator;
 
 /// Returns the available languages for selected translator.

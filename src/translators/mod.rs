@@ -18,10 +18,12 @@ use crate::translators::api::chatgpt::ChatGPTModel;
 use crate::translators::chainer::{TranslatorSelectorInfo, TranslatorSelectorInitilized};
 use crate::translators::context::Context;
 #[cfg(feature = "offline_req")]
-use crate::translators::offline::ctranslate2::model_management::Models;
+use crate::translators::offline::ctranslate2::model_management::{
+    CTranslateModels, TokenizerModels,
+};
 use crate::translators::tokens::Tokens;
 use crate::translators::translator_initilized::TranslatorInitialized;
-use crate::translators::translator_structrue::{
+use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorDyn,
 };
 
@@ -35,7 +37,7 @@ pub mod offline;
 pub mod scrape;
 pub mod tokens;
 mod translator_initilized;
-pub mod translator_structrue;
+pub mod translator_structure;
 
 #[derive(Default, PartialEq, Eq, EnumString, IntoStaticStr, Clone, Debug)]
 pub enum ConversationStyleClone {
@@ -264,7 +266,8 @@ impl Translators {
         text: String,
         from: Option<Language>,
         context_data: &[Context],
-        #[cfg(feature = "offline_req")] models: &mut Models,
+        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<Vec<TranslationOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &text)?;
@@ -316,8 +319,15 @@ impl Translators {
                 #[cfg(feature = "offline_req")]
                 for item in items {
                     v.push(
-                        self.translate_fetch(&queries, from, context_data, item, models)
-                            .await,
+                        self.translate_fetch(
+                            &queries,
+                            from,
+                            context_data,
+                            item,
+                            translator_models,
+                            tokenizer_models,
+                        )
+                        .await,
                     );
                 }
                 for value in v {
@@ -347,7 +357,14 @@ impl Translators {
                     };
                     #[cfg(feature = "offline_req")]
                     let text = self
-                        .translate_fetch(&query, from, context_data, translator, models)
+                        .translate_fetch(
+                            &query,
+                            from,
+                            context_data,
+                            translator,
+                            translator_models,
+                            tokenizer_models,
+                        )
                         .await?;
                     #[cfg(not(feature = "offline_req"))]
                     let text = self
@@ -375,7 +392,8 @@ impl Translators {
         from: Option<Language>,
         context_data: &[Context],
         translator: &TranslatorInitialized,
-        #[cfg(feature = "offline_req")] models: &mut Models,
+        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<TranslationOutput, Error> {
         let text = match &translator.data {
             TranslatorDyn::WC(v) => {
@@ -387,7 +405,13 @@ impl Translators {
                     .await?
             }
             #[cfg(feature = "offline_req")]
-            TranslatorDyn::Of(v) => v.translate(models, query, from, &translator.to)?,
+            TranslatorDyn::Of(v) => v.translate(
+                translator_models,
+                tokenizer_models,
+                query,
+                from,
+                &translator.to,
+            )?,
         };
 
         Ok(TranslationOutput {
@@ -402,7 +426,8 @@ impl Translators {
         queries: Vec<String>,
         from: Option<Language>,
         context_data: &[Context],
-        #[cfg(feature = "offline_req")] models: &mut Models,
+        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<Vec<TranslationVecOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &queries.join("\n"))?;
@@ -457,8 +482,15 @@ impl Translators {
                 #[cfg(feature = "offline_req")]
                 for item in items {
                     v.push(
-                        self.translate_vec_fetch(queries, from, item, context_data, models)
-                            .await,
+                        self.translate_vec_fetch(
+                            queries,
+                            from,
+                            item,
+                            context_data,
+                            translator_models,
+                            tokenizer_models,
+                        )
+                        .await,
                     );
                 }
                 for value in v {
@@ -489,7 +521,14 @@ impl Translators {
                     };
                     #[cfg(feature = "offline_req")]
                     let text = self
-                        .translate_vec_fetch(queries, from, translator, context_data, models)
+                        .translate_vec_fetch(
+                            queries,
+                            from,
+                            translator,
+                            context_data,
+                            translator_models,
+                            tokenizer_models,
+                        )
                         .await?;
                     #[cfg(not(feature = "offline_req"))]
                     let text = self
@@ -516,7 +555,8 @@ impl Translators {
         from: Option<Language>,
         translator: &TranslatorInitialized,
         context_data: &[Context],
-        #[cfg(feature = "offline_req")] models: &mut Models,
+        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<TranslationVecOutput, Error> {
         match &translator.data {
             TranslatorDyn::WC(v) => {
@@ -534,7 +574,13 @@ impl Translators {
                     .await
             }
             #[cfg(feature = "offline_req")]
-            TranslatorDyn::Of(v) => v.translate_vec(models, queries, from, &translator.to),
+            TranslatorDyn::Of(v) => v.translate_vec(
+                translator_models,
+                tokenizer_models,
+                queries,
+                from,
+                &translator.to,
+            ),
         }
     }
 

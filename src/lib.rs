@@ -1,54 +1,11 @@
-#[cfg(feature = "offline_req")]
-use std::collections::HashMap;
-#[cfg(feature = "offline_req")]
-use std::path::PathBuf;
-#[cfg(feature = "offline_req")]
-use std::str::FromStr;
-
-#[cfg(feature = "offline_req")]
-use model_manager::model_manager::{Model, ModelManager};
-
 pub mod detector;
 pub mod error;
 #[cfg(feature = "generate")]
 pub mod generator;
 mod languages;
-pub mod translators;
-
-#[allow(dead_code)]
 #[cfg(feature = "offline_req")]
-fn register(mm: &mut ModelManager) {
-    let mut models = HashMap::new();
-    #[cfg(feature = "jparacrawl")]
-    models.insert("JParaCrawl".to_string(), Model{
-        url: "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/jparacrawl-base-models.zip".to_string(),
-        directory: PathBuf::from_str("translators/jparacrawl/base").unwrap(),
-        version: 3.0,
-    });
-    #[cfg(feature = "jparacrawlbig")]
-    models.insert("JParaCrawlBig".to_string(), Model{
-        url: "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/jparacrawl-big-models.zip".to_string(),
-        directory: PathBuf::from_str("translators/jparacrawl/big").unwrap(),
-        version: 3.0,
-    });
-    #[cfg(feature = "sugoi")]
-    models.insert("Sugoi".to_string(), Model{
-        url: "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/sugoi-models.zip".to_string(),
-        directory: PathBuf::from_str("translators/sugoi").unwrap(),
-        version: 4.0,
-    });
-    models.insert("M2M100 418m".to_string(), Model{
-        url: "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/m2m100_418m_ct2.zip".to_string(),
-        directory: PathBuf::from_str("translators/m2m100/418m").unwrap(),
-        version: 0.01,
-    });
-    models.insert("M2M100 1.2b".to_string(), Model{
-        url: "https://github.com/zyddnys/manga-image-translator/releases/download/beta-0.3/m2m100_12b_ct2.zip".to_string(),
-        directory: PathBuf::from_str("translators/m2m100/1.2b").unwrap(),
-        version: 0.01,
-    });
-    mm.register_models(models);
-}
+mod model_register;
+pub mod translators;
 
 #[cfg(test)]
 mod tests {
@@ -64,13 +21,14 @@ mod tests {
     use crate::generator::Records;
     use crate::languages::Language;
     #[cfg(feature = "offline_req")]
-    use crate::register;
+    use crate::model_register::register;
     use crate::translators::chainer::{TranslatorInfo, TranslatorSelectorInfo};
     use crate::translators::context::Context;
     use crate::translators::dev::{get_csv_errors, get_languages};
+    use crate::translators::offline::ctranslate2::model_management::ModelLifetime;
     use crate::translators::scrape::papago::PapagoTranslator;
     use crate::translators::tokens::Tokens;
-    use crate::translators::translator_structrue::TranslatorLanguages;
+    use crate::translators::translator_structure::TranslatorLanguages;
     use crate::translators::{Translator, Translators};
 
     #[tokio::test]
@@ -78,8 +36,7 @@ mod tests {
     async fn models() {
         let mut mm = ModelManager::new().unwrap();
         register(&mut mm);
-        mm.proccess(3).await.unwrap();
-        mm.remove_zips().unwrap();
+        mm.download_all(3).await.unwrap();
         mm.clean_directory().unwrap();
     }
 
@@ -122,7 +79,12 @@ mod tests {
         .unwrap();
         let chatgpt_context = Context::ChatGPT("This is a text about ...".to_string());
         let translation = v
-            .translate("Hello world".to_string(), None, &[chatgpt_context])
+            .translate(
+                "Hello world".to_string(),
+                None,
+                &[chatgpt_context],
+                &mut Models::new(ModelLifetime::KeepAlive),
+            )
             .await
             .unwrap();
         let translations = v
@@ -130,6 +92,7 @@ mod tests {
                 vec!["Hello world".to_string(), "This is a test".to_string()],
                 None,
                 &[],
+                &mut Models::new(ModelLifetime::KeepAlive),
             )
             .await
             .unwrap();
@@ -150,7 +113,7 @@ mod tests {
             .unwrap();
         //println!("{:?}", vv);
         let mut v = Records::new().unwrap();
-        // v.add_line("nllb", &vv);
+        v.add_line("nllb", &vv);
         v.write_file("test.csv").expect("TODO: panic message");
     }
 

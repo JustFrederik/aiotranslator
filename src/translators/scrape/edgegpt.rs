@@ -2,7 +2,7 @@ use crate::error::Error;
 use crate::languages::Language;
 use crate::translators::context::{get_gpt_context, Context};
 use crate::translators::helpers::input_limit_checker;
-use crate::translators::translator_structrue::{
+use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorContext,
 };
 use crate::translators::{chatbot, ConversationStyleClone};

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::error::Error;
 use crate::languages::Language;
-use crate::translators::translator_structrue::TranslationVecOutput;
+use crate::translators::translator_structure::TranslationVecOutput;
 
 /// extract translations from response
 pub fn process_result(s: String, queries: &[String]) -> Result<TranslationVecOutput, Error> {

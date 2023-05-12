@@ -2,11 +2,23 @@
 pub mod ctranslate2;
 #[cfg(feature = "jparacrawl")]
 pub mod jparacrawl;
-#[cfg(feature = "jparacrawlbig")]
-pub mod jparacrawlbig;
-#[cfg(feature = "m2m100_12b")]
-pub mod m2m100_12b;
-#[cfg(feature = "m2m100_418m")]
-pub mod m2m100_418m;
+#[cfg(feature = "m2m100")]
+pub mod m2m100;
 #[cfg(feature = "sugoi")]
 pub mod sugoi;
+
+#[derive(PartialEq, Eq)]
+#[cfg(feature = "offline_req")]
+pub enum ModelFormat {
+    Compact,
+    Normal,
+}
+#[cfg(feature = "offline_req")]
+impl ModelFormat {
+    fn is_compressed(&self) -> bool {
+        if self == &ModelFormat::Compact {
+            return true;
+        }
+        false
+    }
+}

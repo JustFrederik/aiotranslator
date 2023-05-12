@@ -1,42 +1,47 @@
 use crate::error::Error;
 use crate::languages::Language;
-use crate::translators::offline::ctranslate2::model_management::Models;
-use crate::translators::offline::ctranslate2::py::transalte_with_py;
+use crate::translators::offline::ctranslate2::model_management::{
+    CTranslateModels, TokenizerModels,
+};
 use crate::translators::offline::ctranslate2::Device;
-use crate::translators::offline::jparacrawlbig::JParaCrawlBigTranslator;
-use crate::translators::translator_structrue::{TranslationVecOutput, TranslatorCTranslate};
+use crate::translators::offline::ModelFormat;
+use crate::translators::translator_structure::{TranslationVecOutput, TranslatorCTranslate};
+use model_manager::model_manager::ModelManager;
+use rustyctranslate2::BatchType;
 use std::path::PathBuf;
 
 pub struct SugoiTranslator {
     device: Device,
     base_path: PathBuf,
+    model_format: ModelFormat,
 }
 
 impl TranslatorCTranslate for SugoiTranslator {
     fn translate_vec(
         &self,
-        models: &mut Models,
+        translator_models: &mut CTranslateModels,
+        tokenizer_model: &mut TokenizerModels,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
         let from = Self::get_from(from, to)?;
         let model_path = self.base_path.join("spm.ja.nopretok.model");
-        let tokenizer =
-            models.get_tokenizer(&format!("sugoi-{}", from.to_jparacrawl_str()?), model_path)?;
+        let tokenizer = tokenizer_model.get_tokenizer("sugoi", model_path)?;
         let (query, query_split_sizes) = Self::pre_tokenize(query);
         let tokens = tokenizer.tokenize(&query)?;
-        //TODO: replace
-        let translated = transalte_with_py(
-            JParaCrawlBigTranslator::get_translator_model_path(&self.base_path, from, to)?,
-            tokens,
-            None,
-            &self.device.to_string(),
-        )
-        .unwrap();
+        let translator = translator_models.get_translator(
+            "sugoi",
+            self.base_path.clone(),
+            &self.device,
+            self.model_format.is_compressed(),
+        )?;
+        let translated = translator
+            .translate_batch(tokens, None, BatchType::Example)
+            .map_err(Error::new_option)?;
         let sentences = tokenizer.detokenize(translated)?;
         let sentences = Self::post_detokenize(sentences, query_split_sizes);
-        models.cleanup();
+        tokenizer_model.cleanup();
         Ok(TranslationVecOutput {
             text: sentences,
             lang: from,
@@ -45,8 +50,21 @@ impl TranslatorCTranslate for SugoiTranslator {
 }
 
 impl SugoiTranslator {
-    pub fn new(base_path: PathBuf, device: Device) -> Self {
-        Self { device, base_path }
+    pub async fn new(
+        model_format: ModelFormat,
+        device: Device,
+        mm: &ModelManager,
+    ) -> Result<Self, Error> {
+        let ident = Self::get_model_name(&device, &model_format);
+        let model = mm
+            .get_model_async(&ident)
+            .await
+            .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
+        Ok(Self {
+            device,
+            base_path: model.0.join(&model.1.directory),
+            model_format,
+        })
     }
 
     fn get_from(from: Option<Language>, to: &Language) -> Result<Language, Error> {
@@ -94,5 +112,18 @@ impl SugoiTranslator {
             new_translations.push(sentences);
         }
         new_translations
+    }
+
+    fn get_model_name(device: &Device, model_format: &ModelFormat) -> String {
+        format!(
+            "sugoi-ja-en-ct2{}",
+            match model_format {
+                ModelFormat::Compact => match device {
+                    Device::CPU => "-int8",
+                    Device::CUDA => "-float16",
+                },
+                ModelFormat::Normal => "",
+            }
+        )
     }
 }

@@ -12,7 +12,7 @@ use crate::error::Error;
 use crate::languages::Language;
 use crate::translators::helpers::option_error;
 use crate::translators::tokens::Tokens;
-use crate::translators::translator_structrue::{
+use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorLanguages, TranslatorNoContext,
 };
 

@@ -13,7 +13,7 @@ use serde_json::Value;
 use crate::error::Error;
 use crate::languages::Language;
 use crate::translators::tokens::Tokens;
-use crate::translators::translator_structrue::{
+use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorLanguages, TranslatorNoContext,
 };
 

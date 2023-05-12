@@ -1,6 +1,6 @@
 [package]
 name = "translators"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -28,9 +28,9 @@ md-5 = { version = "0.10.5", optional = true }
 base64 = { version = "0.21.0", optional = true }
 uuid = { version = "1.3.2", features = ["v4"], optional = true }
 sentencepiece = { version = "0.11.1", optional = true }
-model-manager = { git = "https://github.com/JustFrederik/model_manager.git", optional = true }
-
-pyo3 = { version = "0.18", optional = true}
+model-manager = { git = "https://github.com/JustFrederik/model_manager.git", rev = "ab98303", optional = true }
+rustyctranslate2 = { git = "https://github.com/JustFrederik/rustyctranslate2", rev = "94a745f", optional = true }
+async-global-executor = "2.3.1"
 
 [features]
 default = ["whatlang-detector", "online", "retries", "fetch_languages", "generate"]
@@ -58,14 +58,12 @@ scraper = ["bing-scrape", "papago-scrape", "youdao-scrape", "baidu-scrape", "goo
 
 online = ["api", "scraper"]
 
-offline_req = ["dep:sentencepiece", "dep:model-manager", "dep:pyo3"]
+offline_req = ["dep:sentencepiece", "dep:model-manager", "dep:rustyctranslate2"]
 jparacrawl = ["offline_req"]
-jparacrawlbig = ["offline_req"]
 sugoi = ["offline_req", "dep:regex"]
-m2m100_12b = ["offline_req"]
-m2m100_418m = ["offline_req"]
+m2m100 = ["offline_req"]
 
-offline = ["jparacrawl", "jparacrawlbig", "sugoi", "m2m100_418m", "m2m100_12b"]
+offline = ["jparacrawl", "sugoi", "m2m100"]
 
 all-translators = ["online", "offline"]
 

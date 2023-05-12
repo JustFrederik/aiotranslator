@@ -7,19 +7,28 @@ use crate::error::Error;
 use crate::languages::Language;
 use crate::translators::context::Context;
 #[cfg(feature = "offline_req")]
-use crate::translators::offline::ctranslate2::model_management::Models;
+use crate::translators::offline::ctranslate2::model_management::{
+    CTranslateModels, TokenizerModels,
+};
 use crate::translators::tokens::Tokens;
 
 #[cfg(feature = "offline_req")]
 pub trait TranslatorCTranslate {
     fn translate(
         &self,
-        models: &mut Models,
+        translator_models: &mut CTranslateModels,
+        tokenizer_models: &mut TokenizerModels,
         query: &str,
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationOutput, Error> {
-        let mut temp = self.translate_vec(models, &[query.to_string()], from, to)?;
+        let mut temp = self.translate_vec(
+            translator_models,
+            tokenizer_models,
+            &[query.to_string()],
+            from,
+            to,
+        )?;
         Ok(TranslationOutput {
             text: temp.text.remove(0),
             lang: temp.lang,
@@ -28,7 +37,8 @@ pub trait TranslatorCTranslate {
 
     fn translate_vec(
         &self,
-        models: &mut Models,
+        translator_models: &mut CTranslateModels,
+        tokenizer_models: &mut TokenizerModels,
         query: &[String],
         from: Option<Language>,
         to: &Language,
