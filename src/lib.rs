@@ -78,11 +78,7 @@ mod tests {
         .unwrap();
         let chatgpt_context = Context::ChatGPT("This is a text about ...".to_string());
         let translation = v
-            .translate(
-                "Hello world".to_string(),
-                None,
-                &[chatgpt_context],
-            )
+            .translate("Hello world".to_string(), None, &[chatgpt_context])
             .await
             .unwrap();
         let translations = v

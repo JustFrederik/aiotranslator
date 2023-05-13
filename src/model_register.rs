@@ -40,9 +40,9 @@ pub fn register(mm: &mut ModelManager) {
         "model.bin",
         "config.json",
     ]
-        .iter()
-        .map(|x| x.to_string())
-        .collect::<Vec<_>>();
+    .iter()
+    .map(|x| x.to_string())
+    .collect::<Vec<_>>();
     models.insert(
         "jparacrawl-small-ct2".to_string(),
         Model {

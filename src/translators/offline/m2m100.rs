@@ -18,7 +18,7 @@ pub enum M2M100ModelType {
 pub struct M2M100Translator {
     device: Device,
     base_path: PathBuf,
-    _model_type: M2M100ModelType,
+    ident: String,
     model_format: ModelFormat,
 }
 
@@ -37,7 +37,7 @@ impl TranslatorCTranslate for M2M100Translator {
         let lang_str = to.to_m2m100_str()?;
         let target = Self::generate_target_prefix(&lang_str, query.len());
         let translator = translator_models.get_translator(
-            "m2m100",
+            &self.ident,
             self.base_path.clone(),
             &self.device,
             self.model_format.is_compressed(),
@@ -74,7 +74,7 @@ impl M2M100Translator {
         Ok(Self {
             base_path: model.0.join(&model.1.directory),
             device,
-            _model_type: model_type,
+            ident,
             model_format: ModelFormat::Normal,
         })
     }
@@ -87,16 +87,17 @@ impl M2M100Translator {
         let extra = match model_format {
             ModelFormat::Compact => match device {
                 Device::CPU => "_int8",
-                Device::CUDA => "_float16"
-            }
-            ModelFormat::Normal => ""
+                Device::CUDA => "_float16",
+            },
+            ModelFormat::Normal => "",
         };
         format!(
             "m2m_100_{}_ct2{}",
             match model_type {
                 M2M100ModelType::Small418m => "418m",
                 M2M100ModelType::Big12b => "1.2b",
-            }, extra
+            },
+            extra
         )
     }
 

@@ -14,6 +14,7 @@ pub struct SugoiTranslator {
     device: Device,
     base_path: PathBuf,
     model_format: ModelFormat,
+    ident: String,
 }
 
 impl TranslatorCTranslate for SugoiTranslator {
@@ -31,7 +32,7 @@ impl TranslatorCTranslate for SugoiTranslator {
         let (query, query_split_sizes) = Self::pre_tokenize(query);
         let tokens = tokenizer.tokenize(&query)?;
         let translator = translator_models.get_translator(
-            "sugoi",
+            &self.ident,
             self.base_path.clone(),
             &self.device,
             self.model_format.is_compressed(),
@@ -61,6 +62,7 @@ impl SugoiTranslator {
             .await
             .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
         Ok(Self {
+            ident,
             device,
             base_path: model.0.join(&model.1.directory),
             model_format,

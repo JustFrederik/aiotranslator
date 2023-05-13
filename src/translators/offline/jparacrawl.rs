@@ -19,15 +19,15 @@ pub enum JParaCrawlModelType {
     Big,
 }
 
-pub struct JParaCrawlTranslator<'a> {
+pub struct JParaCrawlTranslator {
     device: Device,
-    model_manager: &'a ModelManager,
+    model_path: PathBuf,
     tokenizer_filenames: HashMap<Language, String>,
-    model_type: JParaCrawlModelType,
+    ident: String,
     model_format: ModelFormat,
 }
 
-impl<'a> TranslatorCTranslate for JParaCrawlTranslator<'a> {
+impl TranslatorCTranslate for JParaCrawlTranslator {
     fn translate_vec(
         &self,
         translator_models: &mut CTranslateModels,
@@ -37,15 +37,12 @@ impl<'a> TranslatorCTranslate for JParaCrawlTranslator<'a> {
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
         let from = Self::get_from(from, to)?;
-        let ident = self.get_ident();
-        let model = self.model_manager.get_model(&ident).unwrap();
-        let model_path = model.0.join(&model.1.directory);
-        let tokenizer_path = model_path.join(
+        let tokenizer_path = self.model_path.join(
             self.tokenizer_filenames
                 .get(&from)
                 .ok_or_else(|| Error::new_option("Tokenizer not found"))?,
         );
-        let translator_path = Self::get_translator_model_path(&model_path, from, to)?;
+        let translator_path = Self::get_translator_model_path(&self.model_path, from, to)?;
         let tokenizer = tokenizer_models.get_tokenizer(
             &format!("jparacrawl-{}", from.to_jparacrawl_str()?),
             tokenizer_path,
@@ -54,7 +51,7 @@ impl<'a> TranslatorCTranslate for JParaCrawlTranslator<'a> {
         let translator = translator_models.get_translator(
             &format!(
                 "{}-{}-{}",
-                ident,
+                self.ident,
                 from.to_jparacrawl_str()?,
                 to.to_jparacrawl_str()?
             ),
@@ -75,20 +72,25 @@ impl<'a> TranslatorCTranslate for JParaCrawlTranslator<'a> {
     }
 }
 
-impl<'a> JParaCrawlTranslator<'a> {
-    pub fn new(
+impl JParaCrawlTranslator {
+    pub async fn new(
         device: Device,
         model_type: JParaCrawlModelType,
         model_format: ModelFormat,
-        model_manager: &'a ModelManager,
-    ) -> Self {
-        Self {
+        model_manager: &ModelManager,
+    ) -> Result<Self, Error> {
+        let ident = Self::get_ident(&device, &model_format, &model_type);
+        let model = model_manager
+            .get_model_async(&ident)
+            .await
+            .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
+        Ok(Self {
             device,
-            model_manager,
+            model_path: model.0.join(&model.1.directory),
             tokenizer_filenames: Self::get_tokenizer_filenames(),
-            model_type,
+            ident,
             model_format,
-        }
+        })
     }
 
     pub fn get_translator_model_path(
@@ -127,15 +129,19 @@ impl<'a> JParaCrawlTranslator<'a> {
         tokenizer_filenames
     }
 
-    fn get_ident(&self) -> String {
-        let ending = match self.model_format {
-            ModelFormat::Compact => match self.device {
+    fn get_ident(
+        device: &Device,
+        model_format: &ModelFormat,
+        model_type: &JParaCrawlModelType,
+    ) -> String {
+        let ending = match model_format {
+            ModelFormat::Compact => match device {
                 Device::CPU => "-int8",
                 Device::CUDA => "-float16",
             },
             ModelFormat::Normal => "",
         };
-        match self.model_type {
+        match model_type {
             JParaCrawlModelType::Small => format!("jparacrawl-small-ct2{}", ending),
             JParaCrawlModelType::Base => format!("jparacrawl-base-ct2{}", ending),
             JParaCrawlModelType::Big => format!("jparacrawl-big-ct2{}", ending),
