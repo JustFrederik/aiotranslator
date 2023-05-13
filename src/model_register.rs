@@ -198,7 +198,7 @@ pub fn register(mm: &mut ModelManager) {
         "m2m_100_418m_ct2".to_string(),
         Model {
             directory: PathBuf::from_str("translators/m2m_100_418m_ct2").unwrap(),
-            version: 4.0.to_string(),
+            version: "05/13/2023".to_string(),
             source: ModelSource::Huggingface(HuggingfaceModel {
                 repo: "JustFrederik/m2m_100_418m_ct2".to_string(),
                 files: m2m100.clone(),
@@ -211,7 +211,7 @@ pub fn register(mm: &mut ModelManager) {
         "m2m_100_418m_ct2_float16".to_string(),
         Model {
             directory: PathBuf::from_str("translators/m2m_100_418m_ct2_float16").unwrap(),
-            version: 4.0.to_string(),
+            version: "05/13/2023".to_string(),
             source: ModelSource::Huggingface(HuggingfaceModel {
                 repo: "JustFrederik/m2m_100_418m_ct2_float16".to_string(),
                 files: m2m100.clone(),
@@ -224,7 +224,7 @@ pub fn register(mm: &mut ModelManager) {
         "m2m_100_418m_ct2_int8".to_string(),
         Model {
             directory: PathBuf::from_str("translators/m2m_100_418m_ct2_int8").unwrap(),
-            version: 4.0.to_string(),
+            version: "05/13/2023".to_string(),
             source: ModelSource::Huggingface(HuggingfaceModel {
                 repo: "JustFrederik/m2m_100_418m_ct2_int8".to_string(),
                 files: m2m100.clone(),
@@ -237,7 +237,7 @@ pub fn register(mm: &mut ModelManager) {
         "m2m_100_1.2b_ct2".to_string(),
         Model {
             directory: PathBuf::from_str("translators/m2m_100_1.2b_ct2").unwrap(),
-            version: 4.0.to_string(),
+            version: "05/13/2023".to_string(),
             source: ModelSource::Huggingface(HuggingfaceModel {
                 repo: "JustFrederik/m2m_100_1.2b_ct2".to_string(),
                 files: m2m100.clone(),
@@ -250,7 +250,7 @@ pub fn register(mm: &mut ModelManager) {
         "m2m_100_1.2b_ct2_int8".to_string(),
         Model {
             directory: PathBuf::from_str("translators/m2m_100_1.2b_ct2_int8").unwrap(),
-            version: 4.0.to_string(),
+            version: "05/13/2023".to_string(),
             source: ModelSource::Huggingface(HuggingfaceModel {
                 repo: "JustFrederik/m2m_100_1.2b_ct2_int8".to_string(),
                 files: m2m100.clone(),
@@ -263,7 +263,7 @@ pub fn register(mm: &mut ModelManager) {
         "m2m_100_1.2b_ct2_float16".to_string(),
         Model {
             directory: PathBuf::from_str("translators/m2m_100_1.2b_ct2_float16").unwrap(),
-            version: 4.0.to_string(),
+            version: "05/13/2023".to_string(),
             source: ModelSource::Huggingface(HuggingfaceModel {
                 repo: "JustFrederik/m2m_100_1.2b_ct2_float16".to_string(),
                 files: m2m100,
