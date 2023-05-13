@@ -31,7 +31,7 @@ impl TranslatorCTranslate for M2M100Translator {
         _from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let model_path = self.base_path.join("sentencepiece.model");
+        let model_path = self.base_path.join("spm.128k.model");
         let tokenizer = tokenizer_model.get_tokenizer("m2m100", model_path)?;
         let tokens = tokenizer.tokenize(query)?;
         let lang_str = to.to_m2m100_str()?;
@@ -63,9 +63,10 @@ impl M2M100Translator {
     pub async fn new(
         device: Device,
         model_manager: &ModelManager,
+        model_format: ModelFormat,
         model_type: M2M100ModelType,
     ) -> Result<Self, Error> {
-        let ident = Self::get_model_name(&device, &ModelFormat::Normal, &model_type);
+        let ident = Self::get_model_name(&device, &model_format, &model_type);
         let model = model_manager
             .get_model_async(&ident)
             .await
@@ -79,17 +80,23 @@ impl M2M100Translator {
     }
 
     fn get_model_name(
-        _device: &Device,
-        _model_format: &ModelFormat,
+        device: &Device,
+        model_format: &ModelFormat,
         model_type: &M2M100ModelType,
     ) -> String {
-        //TODO:
-        format!(
-            "m2m100{}",
-            match model_type {
-                M2M100ModelType::Small418m => "-418m-ct2",
-                M2M100ModelType::Big12b => "-1.2B-ct2",
+        let extra = match model_format {
+            ModelFormat::Compact => match device {
+                Device::CPU => "_int8",
+                Device::CUDA => "_float16"
             }
+            ModelFormat::Normal => ""
+        };
+        format!(
+            "m2m_100_{}_ct2{}",
+            match model_type {
+                M2M100ModelType::Small418m => "418m",
+                M2M100ModelType::Big12b => "1.2b",
+            }, extra
         )
     }
 
