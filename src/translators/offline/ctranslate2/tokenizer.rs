@@ -36,16 +36,4 @@ impl Tokenizer {
             })
             .collect()
     }
-
-    pub fn detokenize2(&self, tokens: Vec<Vec<String>>) -> Result<Vec<String>, Error> {
-        println!("{:?}", tokens);
-        tokens
-            .into_iter()
-            .map(|v| {
-                self.spp
-                    .decode_piece_ids(&v.iter().map(|v| v.parse().unwrap()).collect::<Vec<_>>())
-                    .map_err(|e| Error::new("Sentencepiecerror", e))
-            })
-            .collect()
-    }
 }

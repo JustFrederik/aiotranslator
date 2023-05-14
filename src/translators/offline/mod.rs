@@ -4,12 +4,15 @@ pub mod ctranslate2;
 pub mod jparacrawl;
 #[cfg(feature = "m2m100")]
 pub mod m2m100;
+#[cfg(feature = "nllb")]
+pub mod nllb;
 #[cfg(feature = "sugoi")]
 pub mod sugoi;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone, Default, Debug)]
 #[cfg(feature = "offline_req")]
 pub enum ModelFormat {
+    #[default]
     Compact,
     Normal,
 }

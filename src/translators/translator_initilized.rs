@@ -1,3 +1,5 @@
+#[cfg(feature = "offline_req")]
+use model_manager::model_manager::ModelManager;
 use reqwest::Client;
 
 use crate::error::Error;
@@ -7,6 +9,14 @@ use crate::translators::api::deepl::DeeplTranslator;
 use crate::translators::api::libretranslate::LibreTranslateTranslator;
 use crate::translators::api::mymemory::MyMemoryTranslator;
 use crate::translators::chainer::TranslatorInfo;
+#[cfg(feature = "jparacrawl")]
+use crate::translators::offline::jparacrawl::JParaCrawlTranslator;
+#[cfg(feature = "m2m100")]
+use crate::translators::offline::m2m100::M2M100Translator;
+#[cfg(feature = "nllb")]
+use crate::translators::offline::nllb::NllbTranslator;
+#[cfg(feature = "sugoi")]
+use crate::translators::offline::sugoi::SugoiTranslator;
 use crate::translators::scrape::baidu::BaiduTranslator;
 use crate::translators::scrape::bing::BingTranslator;
 use crate::translators::scrape::edgegpt::EdgeGpt;
@@ -29,6 +39,7 @@ impl TranslatorInitialized {
         info: TranslatorInfo,
         tokens: &Tokens,
         client: &Client,
+        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
     ) -> Result<Self, Error> {
         let data: TranslatorDyn = match &info.translator {
             Translator::Deepl => {
@@ -63,6 +74,25 @@ impl TranslatorInitialized {
             Translator::EdgeGPT(csc, path) => {
                 TranslatorDyn::WC(Box::new(EdgeGpt::new(csc, path).await?))
             }
+            #[cfg(feature = "nllb")]
+            Translator::Nllb(device, model_format, model_type) => TranslatorDyn::Of(Box::new(
+                NllbTranslator::new(device, model_format, model_type, model_manager).await?,
+            )),
+            #[cfg(feature = "m2m100")]
+            Translator::M2M100(device, model_format, model_type) => TranslatorDyn::Of(Box::new(
+                M2M100Translator::new(device, model_format, model_type, model_manager).await?,
+            )),
+            #[cfg(feature = "jparacrawl")]
+            Translator::JParaCrawl(device, model_format, model_type) => {
+                TranslatorDyn::Of(Box::new(
+                    JParaCrawlTranslator::new(device, model_format, model_type, model_manager)
+                        .await?,
+                ))
+            }
+            #[cfg(feature = "sugoi")]
+            Translator::Sugoi(device, model_format) => TranslatorDyn::Of(Box::new(
+                SugoiTranslator::new(device, model_format, model_manager).await?,
+            )),
         };
         Ok(Self {
             data,

@@ -52,20 +52,20 @@ impl TranslatorCTranslate for SugoiTranslator {
 
 impl SugoiTranslator {
     pub async fn new(
-        model_format: ModelFormat,
-        device: Device,
+        device: &Device,
+        model_format: &ModelFormat,
         mm: &ModelManager,
     ) -> Result<Self, Error> {
-        let ident = Self::get_model_name(&device, &model_format);
+        let ident = Self::get_model_name(device, model_format);
         let model = mm
             .get_model_async(&ident)
             .await
             .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
         Ok(Self {
             ident,
-            device,
+            device: *device,
             base_path: model.0.join(&model.1.directory),
-            model_format,
+            model_format: *model_format,
         })
     }
 

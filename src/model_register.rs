@@ -1,7 +1,8 @@
-use model_manager::model_manager::{HuggingfaceModel, Model, ModelManager, ModelSource};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
+
+use model_manager::model_manager::{HuggingfaceModel, Model, ModelManager, ModelSource};
 
 #[allow(dead_code)]
 pub fn register(mm: &mut ModelManager) {
@@ -39,6 +40,18 @@ pub fn register(mm: &mut ModelManager) {
         "shared_vocabulary.txt",
         "model.bin",
         "config.json",
+    ]
+    .iter()
+    .map(|x| x.to_string())
+    .collect::<Vec<_>>();
+    let nllb = [
+        "model.bin",
+        "config.json",
+        "tokenizer_config.json",
+        "tokenizer.json",
+        "special_tokens_map.json",
+        "shared_vocabulary.txt",
+        "sentencepiece.bpe.model",
     ]
     .iter()
     .map(|x| x.to_string())
@@ -271,5 +284,45 @@ pub fn register(mm: &mut ModelManager) {
             }),
         },
     );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-1.3B-ct2-int8".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-1.3B-ct2-int8").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-1.3B-ct2-int8".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-distilled-600M-ct2-int8".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-distilled-600M-ct2-int8").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-distilled-600M-ct2-int8".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-distilled-1.3B-ct2-int8".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-distilled-1.3B-ct2-int8").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-distilled-1.3B-ct2-int8".to_string(),
+                files: nllb,
+                commit: None,
+            }),
+        },
+    );
+
     mm.register_models(models);
 }

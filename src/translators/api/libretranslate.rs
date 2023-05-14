@@ -101,7 +101,7 @@ impl TranslatorLanguages for LibreTranslateTranslator {
 impl LibreTranslateTranslator {
     pub fn new(api_key: &Option<String>) -> Self {
         //TODO: other urls
-        //'https://translate.argosopentech.com', 'https://libretranslate.de','https://trans.zillyhuhn.com',
+        //'https://translate.argosopentech.com', 'https://libretranslate.de', https://libretranslate.com,https://libretranslate.org,'https://trans.zillyhuhn.com',
         //'https://translate.astian.org', 'https://translate.mentality.rip','https://translate.api.skitzen.com',
         Self {
             host: "https://translate.argosopentech.com".to_string(),

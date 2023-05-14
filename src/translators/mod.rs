@@ -7,6 +7,8 @@ use std::vec;
 use futures::future::FutureExt;
 #[cfg(not(feature = "offline_req"))]
 use futures::{stream, StreamExt};
+#[cfg(feature = "offline_req")]
+use model_manager::model_manager::ModelManager;
 use reqwest::Client;
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, EnumString, IntoStaticStr};
@@ -21,6 +23,16 @@ use crate::translators::context::Context;
 use crate::translators::offline::ctranslate2::model_management::{
     CTranslateModels, TokenizerModels,
 };
+#[cfg(feature = "offline_req")]
+use crate::translators::offline::ctranslate2::Device;
+#[cfg(feature = "jparacrawl")]
+use crate::translators::offline::jparacrawl::JParaCrawlModelType;
+#[cfg(feature = "m2m100")]
+use crate::translators::offline::m2m100::M2M100ModelType;
+#[cfg(feature = "nllb")]
+use crate::translators::offline::nllb::NllbModelType;
+#[cfg(feature = "offline_req")]
+use crate::translators::offline::ModelFormat;
 use crate::translators::tokens::Tokens;
 use crate::translators::translator_initilized::TranslatorInitialized;
 use crate::translators::translator_structure::{
@@ -48,7 +60,7 @@ pub enum ConversationStyleClone {
 }
 /// Enum Containing all the translators
 /// NOTE: when defining new translator add the is_api, is_fetch,get_api_available in the impl
-#[derive(EnumIter, EnumString, IntoStaticStr, Clone, PartialEq, Debug)]
+#[derive(EnumIter, IntoStaticStr, Clone, PartialEq, Debug)]
 pub enum Translator {
     /// For Deepl Translate with API key
     #[cfg(feature = "deepl")]
@@ -77,6 +89,14 @@ pub enum Translator {
     /// For Baidu Translate
     #[cfg(feature = "baidu-scrape")]
     Baidu,
+    #[cfg(feature = "nllb")]
+    Nllb(Device, ModelFormat, NllbModelType),
+    #[cfg(feature = "m2m100")]
+    M2M100(Device, ModelFormat, M2M100ModelType),
+    #[cfg(feature = "jparacrawl")]
+    JParaCrawl(Device, ModelFormat, JParaCrawlModelType),
+    #[cfg(feature = "sugoi")]
+    Sugoi(Device, ModelFormat),
 }
 
 impl Translator {
@@ -191,6 +211,7 @@ impl Translators {
         #[cfg(feature = "retries")] retry_delay: Option<Duration>,
         #[cfg(feature = "retries")] retry_count: Option<u32>,
         detector: Detectors,
+        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
     ) -> Result<Self, Error> {
         let client = Default::default();
         let tokens = match tokens {
@@ -198,7 +219,15 @@ impl Translators {
             None => Tokens::get_env(),
         }
         .map_err(|v| Error::new("Couldnt get tokens from env", v))?;
-        let translators = Self::generate_chain(selector, &tokens, 5, &client).await?;
+        let translators = Self::generate_chain(
+            selector,
+            &tokens,
+            5,
+            &client,
+            #[cfg(feature = "offline_req")]
+            model_manager,
+        )
+        .await?;
         Ok(Self {
             translators,
             #[cfg(feature = "retries")]
@@ -218,6 +247,7 @@ impl Translators {
         tokens: &Tokens,
         cc: usize,
         client: &Client,
+        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
     ) -> Result<TranslatorSelectorInitilized, Error> {
         let check_available = |lang: &Language, translator: &Translator| -> Result<String, Error> {
             match translator {
@@ -230,6 +260,14 @@ impl Translators {
                 Translator::Papago => lang.to_papago_str(),
                 Translator::Youdao => lang.to_youdao_str(),
                 Translator::Baidu => lang.to_baidu_str(),
+                #[cfg(feature = "nllb")]
+                Translator::Nllb(_, _, _) => lang.to_nllb_str(),
+                #[cfg(feature = "m2m100")]
+                Translator::M2M100(_, _, _) => lang.to_m2m100_str(),
+                #[cfg(feature = "jparacrawl")]
+                Translator::JParaCrawl(_, _, _) => lang.to_jparacrawl_str(),
+                #[cfg(feature = "sugoi")]
+                Translator::Sugoi(_, _) => lang.to_sugoi_str(),
             }
         };
         match &selector {
@@ -257,7 +295,15 @@ impl Translators {
                 }
             }
         };
-        TranslatorSelectorInitilized::from_info(selector, tokens, cc, client).await
+        TranslatorSelectorInitilized::from_info(
+            selector,
+            tokens,
+            cc,
+            client,
+            #[cfg(feature = "offline_req")]
+            model_manager,
+        )
+        .await
     }
 
     /// The call to translate a string

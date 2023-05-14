@@ -1,0 +1,6 @@
+GPT_TOKEN=token
+DEEPL_TOKEN=token
+LIBRE_TOKEN=token
+GPT_PROXY=https://...
+GPT_OLD_PROXY=https://...
+

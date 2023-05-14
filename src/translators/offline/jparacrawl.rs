@@ -13,9 +13,11 @@ use crate::translators::offline::ctranslate2::Device;
 use crate::translators::offline::ModelFormat;
 use crate::translators::translator_structure::{TranslationVecOutput, TranslatorCTranslate};
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum JParaCrawlModelType {
     Small,
     Base,
+    #[default]
     Big,
 }
 
@@ -74,22 +76,22 @@ impl TranslatorCTranslate for JParaCrawlTranslator {
 
 impl JParaCrawlTranslator {
     pub async fn new(
-        device: Device,
-        model_type: JParaCrawlModelType,
-        model_format: ModelFormat,
+        device: &Device,
+        model_format: &ModelFormat,
+        model_type: &JParaCrawlModelType,
         model_manager: &ModelManager,
     ) -> Result<Self, Error> {
-        let ident = Self::get_ident(&device, &model_format, &model_type);
+        let ident = Self::get_ident(device, model_format, model_type);
         let model = model_manager
             .get_model_async(&ident)
             .await
             .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
         Ok(Self {
-            device,
+            device: *device,
             model_path: model.0.join(&model.1.directory),
             tokenizer_filenames: Self::get_tokenizer_filenames(),
             ident,
-            model_format,
+            model_format: *model_format,
         })
     }
 

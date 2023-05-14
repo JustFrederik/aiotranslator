@@ -42,6 +42,14 @@ pub async fn get_languages(translator: &Translator, tokens: &Tokens) -> Result<V
         #[cfg(feature = "baidu-scrape")]
         Translator::Baidu => BaiduTranslator::get_languages(&client, tokens).await,
         Translator::EdgeGPT(_, _) => Ok(vec![]),
+        #[cfg(feature = "nllb")]
+        Translator::Nllb(_, _, _) => unimplemented!(),
+        #[cfg(feature = "m2m100")]
+        Translator::M2M100(_, _, _) => unimplemented!(),
+        #[cfg(feature = "jparacrawl")]
+        Translator::JParaCrawl(_, _, _) => unimplemented!(),
+        #[cfg(feature = "sugoi")]
+        Translator::Sugoi(_, _) => unimplemented!(),
     }
 }
 
@@ -64,6 +72,14 @@ pub async fn get_csv_errors(
             Translator::Papago => v.to_papago_str(),
             Translator::Youdao => v.to_youdao_str(),
             Translator::Baidu => v.to_baidu_str(),
+            #[cfg(feature = "nllb")]
+            Translator::Nllb(_, _, _) => v.to_nllb_str(),
+            #[cfg(feature = "m2m100")]
+            Translator::M2M100(_, _, _) => v.to_m2m100_str(),
+            #[cfg(feature = "jparacrawl")]
+            Translator::JParaCrawl(_, _, _) => v.to_jparacrawl_str(),
+            #[cfg(feature = "sugoi")]
+            Translator::Sugoi(_, _) => v.to_sugoi_str(),
         }
     };
 
@@ -88,6 +104,14 @@ pub async fn get_csv_errors(
         Translator::Papago => Language::get_supported_papago(),
         Translator::Youdao => Language::get_supported_youdao(),
         Translator::Baidu => Language::get_supported_baidu(),
+        #[cfg(feature = "nllb")]
+        Translator::Nllb(_, _, _) => Language::get_supported_nllb(),
+        #[cfg(feature = "m2m100")]
+        Translator::M2M100(_, _, _) => Language::get_supported_m2m100(),
+        #[cfg(feature = "jparacrawl")]
+        Translator::JParaCrawl(_, _, _) => Language::get_supported_jparacrawl(),
+        #[cfg(feature = "sugoi")]
+        Translator::Sugoi(_, _) => Language::get_supported_sugoi(),
     };
 
     let missing = langs

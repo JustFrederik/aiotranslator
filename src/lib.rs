@@ -9,8 +9,6 @@ pub mod translators;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use dotenv::dotenv;
     #[cfg(feature = "offline_req")]
     use model_manager::model_manager::ModelManager;
@@ -22,17 +20,52 @@ mod tests {
     use crate::languages::Language;
     #[cfg(feature = "offline_req")]
     use crate::model_register::register;
-    use crate::translators::chainer::{TranslatorInfo, TranslatorSelectorInfo};
-    use crate::translators::context::Context;
     use crate::translators::dev::{get_csv_errors, get_languages};
+    use crate::translators::offline::ctranslate2::model_management::{
+        CTranslateModels, ModelLifetime, TokenizerModels,
+    };
+    use crate::translators::offline::ctranslate2::Device;
+    use crate::translators::offline::m2m100::{M2M100ModelType, M2M100Translator};
+    use crate::translators::offline::ModelFormat;
     use crate::translators::scrape::papago::PapagoTranslator;
     use crate::translators::tokens::Tokens;
-    use crate::translators::translator_structure::TranslatorLanguages;
-    use crate::translators::{Translator, Translators};
+    use crate::translators::translator_structure::{TranslatorCTranslate, TranslatorLanguages};
+    use crate::translators::Translator;
+
+    #[tokio::test]
+    #[cfg(feature = "offline_req")]
+    async fn translate_offline() {
+        let time = std::time::Instant::now();
+        let mut mm = ModelManager::new().unwrap();
+        register(&mut mm);
+        let v = M2M100Translator::new(
+            &Device::CPU,
+            &ModelFormat::Normal,
+            &M2M100ModelType::Small418m,
+            &mm,
+        )
+        .await
+        .unwrap();
+        let mut tk = TokenizerModels::new(ModelLifetime::KeepAlive);
+        let mut tt = CTranslateModels::new(ModelLifetime::KeepAlive);
+
+        let mess = v
+            .translate_vec(
+                &mut tt,
+                &mut tk,
+                &["こんにちは!".to_string()],
+                None,
+                &Language::English,
+            )
+            .unwrap();
+        println!("{:?}", mess);
+        println!("{:?}", time.elapsed());
+    }
 
     #[tokio::test]
     #[cfg(feature = "offline_req")]
     async fn models() {
+        //TODO: better downloader https://github.com/mattgathu/duma/tree/master
         let mut mm = ModelManager::new().unwrap();
         register(&mut mm);
         mm.download_all(3).await.unwrap();
@@ -56,6 +89,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg(not(feature = "offline_req"))]
     async fn translate() {
         dotenv().ok();
         let mut hashmap = HashMap::new();

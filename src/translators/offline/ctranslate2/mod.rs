@@ -1,7 +1,9 @@
 pub mod model_management;
 pub mod tokenizer;
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Device {
+    #[default]
     CPU,
     CUDA,
 }
@@ -26,7 +28,7 @@ impl Device {
 
     #[allow(dead_code)]
     fn auto() -> Self {
-        //TODO:
+        //TODO: add auto
         Device::CPU
     }
 }

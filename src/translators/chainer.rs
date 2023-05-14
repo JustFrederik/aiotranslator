@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use futures::{stream, StreamExt};
+#[cfg(feature = "offline_req")]
+use model_manager::model_manager::ModelManager;
 use reqwest::Client;
 
 use crate::error::Error;
@@ -49,26 +51,62 @@ impl TranslatorSelectorInitilized {
         tokens: &Tokens,
         cc: usize,
         client: &Client,
+        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
     ) -> Result<Self, Error> {
         Ok(match info {
             TranslatorSelectorInfo::Selective(v, default) => {
                 let mut v = v;
                 v.insert(Language::Unknown, default.translator);
                 Self::Selective(
-                    convert_selective_hashmap(v, tokens, &default.to, cc, client).await?,
+                    convert_selective_hashmap(
+                        v,
+                        tokens,
+                        &default.to,
+                        cc,
+                        client,
+                        #[cfg(feature = "offline_req")]
+                        model_manager,
+                    )
+                    .await?,
                 )
             }
             TranslatorSelectorInfo::SelectiveChain(v, default) => {
                 let mut v = v;
                 v.insert(Language::Unknown, default);
-                Self::SelectiveChain(convert_selective_chain(v, tokens, cc, client).await?)
+                Self::SelectiveChain(
+                    convert_selective_chain(
+                        v,
+                        tokens,
+                        cc,
+                        client,
+                        #[cfg(feature = "offline_req")]
+                        model_manager,
+                    )
+                    .await?,
+                )
             }
-            TranslatorSelectorInfo::Chain(v) => {
-                Self::Chain(convert_chain(v, tokens, cc, client).await?)
-            }
-            TranslatorSelectorInfo::List(v) => {
-                Self::List(convert_chain(v, tokens, cc, client).await?)
-            }
+            TranslatorSelectorInfo::Chain(v) => Self::Chain(
+                convert_chain(
+                    v,
+                    tokens,
+                    cc,
+                    client,
+                    #[cfg(feature = "offline_req")]
+                    model_manager,
+                )
+                .await?,
+            ),
+            TranslatorSelectorInfo::List(v) => Self::List(
+                convert_chain(
+                    v,
+                    tokens,
+                    cc,
+                    client,
+                    #[cfg(feature = "offline_req")]
+                    model_manager,
+                )
+                .await?,
+            ),
         })
     }
 }
@@ -79,6 +117,7 @@ async fn convert_selective_chain(
     tokens: &Tokens,
     cc: usize,
     client: &Client,
+    #[cfg(feature = "offline_req")] model_manager: &ModelManager,
 ) -> Result<HashMap<Language, TranslatorInitialized>, Error> {
     let mut translator_data_map = HashMap::new();
 
@@ -100,7 +139,16 @@ async fn convert_selective_chain(
     }
 
     for (key, value) in translator_info_map {
-        translator_data_map.insert(key, TranslatorInitialized::new(value, tokens, client));
+        translator_data_map.insert(
+            key,
+            TranslatorInitialized::new(
+                value,
+                tokens,
+                client,
+                #[cfg(feature = "offline_req")]
+                model_manager,
+            ),
+        );
     }
 
     let u = stream::iter(translator_data_map)
@@ -124,6 +172,7 @@ async fn convert_selective_hashmap(
     to: &Language,
     cc: usize,
     client: &Client,
+    #[cfg(feature = "offline_req")] model_manager: &ModelManager,
 ) -> Result<HashMap<Language, TranslatorInitialized>, Error> {
     let mut translator_data_map = HashMap::new();
     for (key, value) in translator_info_map {
@@ -136,6 +185,8 @@ async fn convert_selective_hashmap(
                 },
                 tokens,
                 client,
+                #[cfg(feature = "offline_req")]
+                model_manager,
             ),
         );
     }
@@ -160,10 +211,17 @@ async fn convert_chain(
     tokens: &Tokens,
     cc: usize,
     client: &Client,
+    #[cfg(feature = "offline_req")] model_manager: &ModelManager,
 ) -> Result<Vec<TranslatorInitialized>, Error> {
     let mut res = vec![];
     for v in vec {
-        res.push(TranslatorInitialized::new(v, tokens, client));
+        res.push(TranslatorInitialized::new(
+            v,
+            tokens,
+            client,
+            #[cfg(feature = "offline_req")]
+            model_manager,
+        ));
     }
 
     let u = stream::iter(res)
