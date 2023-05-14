@@ -9,6 +9,8 @@ pub mod translators;
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "offline_req"))]
+    use std::collections::HashMap;
     use dotenv::dotenv;
     #[cfg(feature = "offline_req")]
     use model_manager::model_manager::ModelManager;
@@ -20,17 +22,29 @@ mod tests {
     use crate::languages::Language;
     #[cfg(feature = "offline_req")]
     use crate::model_register::register;
+    #[cfg(not(feature = "offline_req"))]
+    use crate::translators::chainer::TranslatorInfo;
+    #[cfg(not(feature = "offline_req"))]
+    use crate::translators::chainer::TranslatorSelectorInfo;
     use crate::translators::dev::{get_csv_errors, get_languages};
+    #[cfg(feature = "offline_req")]
     use crate::translators::offline::ctranslate2::model_management::{
         CTranslateModels, ModelLifetime, TokenizerModels,
     };
+    #[cfg(feature = "offline_req")]
     use crate::translators::offline::ctranslate2::Device;
+    #[cfg(feature = "offline_req")]
     use crate::translators::offline::m2m100::{M2M100ModelType, M2M100Translator};
+    #[cfg(feature = "offline_req")]
     use crate::translators::offline::ModelFormat;
     use crate::translators::scrape::papago::PapagoTranslator;
     use crate::translators::tokens::Tokens;
-    use crate::translators::translator_structure::{TranslatorCTranslate, TranslatorLanguages};
-    use crate::translators::Translator;
+    #[cfg(feature = "offline_req")]
+    use crate::translators::translator_structure::TranslatorCTranslate;
+    use crate::translators::translator_structure::TranslatorLanguages;
+    use crate::translators::{Translator, Translators};
+    #[cfg(not(feature = "offline_req"))]
+    use crate::translators::context::Context;
 
     #[tokio::test]
     #[cfg(feature = "offline_req")]
