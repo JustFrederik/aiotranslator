@@ -13,6 +13,14 @@ pub struct Tokens {
     pub deepl_token: Option<String>,
     /// Libre token
     pub libre_token: Option<String>,
+    /// id or key for youdao
+    pub youdao_key: Option<String>,
+    /// youdao secret
+    pub youdao_secret: Option<String>,
+    /// baidu appid for baidu translator
+    pub baidu_appid: Option<String>,
+    /// baidu key for baidu translator
+    pub baidu_key: Option<String>,
 }
 
 impl Tokens {

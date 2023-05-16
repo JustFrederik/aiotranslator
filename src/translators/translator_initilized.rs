@@ -5,10 +5,12 @@ use reqwest::Client;
 
 use crate::error::Error;
 use crate::languages::Language;
+use crate::translators::api::baidu::BaiduApiTranslator;
 use crate::translators::api::chatgpt::ChatGPTTranslator;
 use crate::translators::api::deepl::DeeplTranslator;
 use crate::translators::api::libretranslate::LibreTranslateTranslator;
 use crate::translators::api::mymemory::MyMemoryTranslator;
+use crate::translators::api::youdao::YouDaoApiTranslator;
 use crate::translators::chainer::TranslatorInfo;
 #[cfg(feature = "jparacrawl")]
 use crate::translators::offline::jparacrawl::JParaCrawlTranslator;
@@ -26,7 +28,7 @@ use crate::translators::scrape::papago::PapagoTranslator;
 use crate::translators::scrape::youdao::YoudaoTranslator;
 use crate::translators::tokens::Tokens;
 use crate::translators::translator_structure::TranslatorDyn;
-use crate::translators::Translator;
+use crate::translators::{Translator, TranslatorKind};
 
 #[derive(Debug)]
 pub struct TranslatorInitialized {
@@ -87,13 +89,37 @@ impl TranslatorInitialized {
                 info!("Initializing papgo translator");
                 TranslatorDyn::NC(Box::new(PapagoTranslator::new()))
             }
-            Translator::Youdao => {
+            Translator::Youdao(TranslatorKind::Scrape) => {
                 info!("Initializing youdao translator");
                 TranslatorDyn::NC(Box::new(YoudaoTranslator::new()))
             }
-            Translator::Baidu => {
+            Translator::Youdao(TranslatorKind::Api) => {
+                info!("Initializing youdao translator");
+                let key = tokens
+                    .youdao_key
+                    .as_ref()
+                    .ok_or_else(|| Error::missing_token("youdao_key"))?;
+                let secret = tokens
+                    .youdao_secret
+                    .as_ref()
+                    .ok_or_else(|| Error::missing_token("youdao_secret"))?;
+                TranslatorDyn::NC(Box::new(YouDaoApiTranslator::new(key, secret)))
+            }
+            Translator::Baidu(TranslatorKind::Scrape) => {
                 info!("Initializing baidu translator");
                 TranslatorDyn::NC(Box::new(BaiduTranslator::new()))
+            }
+            Translator::Baidu(TranslatorKind::Api) => {
+                info!("Initializing baidu translator");
+                let id = tokens
+                    .baidu_appid
+                    .as_ref()
+                    .ok_or_else(|| Error::missing_token("youdao_key"))?;
+                let key = tokens
+                    .baidu_key
+                    .as_ref()
+                    .ok_or_else(|| Error::missing_token("youdao_secret"))?;
+                TranslatorDyn::NC(Box::new(BaiduApiTranslator::new(id, key)))
             }
             Translator::EdgeGPT(csc, path) => {
                 info!("Initializing edgegpt translator");

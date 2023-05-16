@@ -38,9 +38,9 @@ pub async fn get_languages(translator: &Translator, tokens: &Tokens) -> Result<V
         #[cfg(feature = "papago-scrape")]
         Translator::Papago => PapagoTranslator::get_languages(&client, tokens).await,
         #[cfg(feature = "youdao-scrape")]
-        Translator::Youdao => YoudaoTranslator::get_languages(&client, tokens).await,
+        Translator::Youdao(_) => YoudaoTranslator::get_languages(&client, tokens).await,
         #[cfg(feature = "baidu-scrape")]
-        Translator::Baidu => BaiduTranslator::get_languages(&client, tokens).await,
+        Translator::Baidu(_) => BaiduTranslator::get_languages(&client, tokens).await,
         Translator::EdgeGPT(_, _) => Ok(vec![]),
         #[cfg(feature = "nllb")]
         Translator::Nllb(_, _, _) => unimplemented!(),
@@ -70,8 +70,8 @@ pub async fn get_csv_errors(
             Translator::LibreTranslate => v.to_libretranslate_str(),
             Translator::MyMemory => v.to_mymemory_str(),
             Translator::Papago => v.to_papago_str(),
-            Translator::Youdao => v.to_youdao_str(),
-            Translator::Baidu => v.to_baidu_str(),
+            Translator::Youdao(_) => v.to_youdao_str(),
+            Translator::Baidu(_) => v.to_baidu_str(),
             #[cfg(feature = "nllb")]
             Translator::Nllb(_, _, _) => v.to_nllb_str(),
             #[cfg(feature = "m2m100")]
@@ -102,8 +102,8 @@ pub async fn get_csv_errors(
         Translator::LibreTranslate => Language::get_supported_libretranslate(),
         Translator::MyMemory => Language::get_supported_mymemory(),
         Translator::Papago => Language::get_supported_papago(),
-        Translator::Youdao => Language::get_supported_youdao(),
-        Translator::Baidu => Language::get_supported_baidu(),
+        Translator::Youdao(_) => Language::get_supported_youdao(),
+        Translator::Baidu(_) => Language::get_supported_baidu(),
         #[cfg(feature = "nllb")]
         Translator::Nllb(_, _, _) => Language::get_supported_nllb(),
         #[cfg(feature = "m2m100")]

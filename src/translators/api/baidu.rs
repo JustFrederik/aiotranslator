@@ -1,42 +1,89 @@
 //https://docs.rs/crate/translation-api-cn/latest/source/src/baidu.rs
 
+use crate::error::Error;
+use crate::languages::Language;
+use crate::translators::translator_structure::{
+    TranslationOutput, TranslationVecOutput, TranslatorNoContext,
+};
+use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::str::FromStr;
 
 #[allow(dead_code)]
-struct BaiduApiTranslator {
+pub struct BaiduApiTranslator {
     url: String,
+    app_id: String,
+    key: String,
 }
 
-#[allow(dead_code)]
-impl BaiduApiTranslator {
-    pub fn new() -> Self {
-        Self {
-            url: "https://fanyi-api.baidu.com/api/trans/vip/translate".to_string(),
-        }
-    }
-
-    pub async fn translate(
+#[async_trait]
+impl TranslatorNoContext for BaiduApiTranslator {
+    async fn translate(
         &self,
         client: &Client,
         query: &str,
-        from: &str,
-        to: &str,
-        key: &str,
-        appid: &str,
-    ) {
-        let form = Form::new(appid, query, "0", key, from, to);
-        let resp = client
+        from: Option<Language>,
+        to: &Language,
+    ) -> Result<TranslationOutput, Error> {
+        let form = Form::new(
+            &self.app_id,
+            query,
+            "0",
+            &self.key,
+            &from
+                .map(|v| v.to_baidu_str())
+                .unwrap_or_else(|| Ok("auto".to_string()))?,
+            &to.to_baidu_str()?,
+        );
+        let resp: Response = client
             .post(&self.url)
             .form(&form)
             .send()
             .await
-            .unwrap()
-            .text()
+            .map_err(Error::fetch)?
+            .json()
             .await
-            .unwrap();
-        print!("{}", resp);
+            .map_err(Error::fetch)?;
+        let resp = match resp {
+            Response::Ok(v) => v,
+            Response::Err(v) => return Err(Error::baidu_error(v)),
+        };
+        Ok(TranslationOutput {
+            text: resp
+                .trans_result
+                .iter()
+                .map(|v| v.dst.to_string())
+                .collect::<Vec<_>>()
+                .join("\n"),
+            lang: Language::from_str(&resp.from).unwrap_or(Language::Unknown),
+        })
+    }
+
+    async fn translate_vec(
+        &self,
+        client: &Client,
+        query: &[String],
+        from: Option<Language>,
+        to: &Language,
+    ) -> Result<TranslationVecOutput, Error> {
+        let v = self.translate(client, &query.join("\n"), from, to).await?;
+        Ok(TranslationVecOutput {
+            text: v.text.split('\n').map(|v| v.to_string()).collect(),
+            lang: v.lang,
+        })
+    }
+}
+
+#[allow(dead_code)]
+impl BaiduApiTranslator {
+    pub fn new(app_id: &str, key: &str) -> Self {
+        Self {
+            url: "https://fanyi-api.baidu.com/api/trans/vip/translate".to_string(),
+            app_id: app_id.to_string(),
+            key: key.to_string(),
+        }
     }
 }
 
@@ -67,30 +114,25 @@ impl Form {
 }
 
 /// Response information. Either return the translation result, or return an error message.
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 #[serde(untagged)]
-pub enum Response {
-    Ok {
-        from: String,
-        to: String,
-        /// Multiple translated texts separated by `\n` in the original text.
-        #[serde(rename = "trans_result")]
-        res: Vec<Value>,
-    },
-    Err(Error),
+enum Response {
+    Ok(TranslationResponse),
+    Err(BaiduApiError),
 }
 
 /// Error handling / error code
 #[derive(Debug, Clone, Deserialize)]
-pub struct Error {
+pub struct BaiduApiError {
     #[serde(rename = "error_code")]
     pub code: String,
     #[serde(rename = "error_msg")]
     pub msg: String,
+    pub data: Option<Value>,
 }
 
-impl std::error::Error for Error {}
-impl std::fmt::Display for Error {
+impl std::error::Error for BaiduApiError {}
+impl std::fmt::Display for BaiduApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,
                "Error code: `{}`\nError message: `{}`\nError meaning: {}\nThe above content is returned by Baidu translation API",
@@ -100,7 +142,7 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl Error {
+impl BaiduApiError {
     ///Reference: [Error Code List](https://fanyi-api.baidu.com/doc/21)
     pub fn solution(&self) -> &str {
         match self.code.as_bytes() {
@@ -122,4 +164,19 @@ impl Error {
             _ => "unknown error",
         }
     }
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct Sentence {
+    pub src: String,
+    pub dst: String,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct TranslationResponse {
+    pub from: String,
+    pub to: String,
+    pub trans_result: Vec<Sentence>,
 }

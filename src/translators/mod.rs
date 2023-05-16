@@ -41,7 +41,7 @@ use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorDyn,
 };
 
-mod api;
+pub mod api;
 pub mod chainer;
 mod chatbot;
 pub mod context;
@@ -60,6 +60,15 @@ pub enum ConversationStyleClone {
     Balanced,
     Precise,
 }
+
+#[derive(Default, Clone, PartialEq, Eq, Debug)]
+pub enum TranslatorKind {
+    #[default]
+    Api,
+    #[cfg(any(feature = "youdao-scrape", feature = "baidu-scrape"))]
+    Scrape,
+}
+
 /// Enum Containing all the translators
 /// NOTE: when defining new translator add the is_api, is_fetch,get_api_available in the impl
 #[derive(EnumIter, Clone, PartialEq, Debug)]
@@ -86,11 +95,11 @@ pub enum Translator {
     #[cfg(feature = "papago-scrape")]
     Papago,
     /// For Youdao Translate
-    #[cfg(feature = "youdao-scrape")]
-    Youdao,
+    #[cfg(any(feature = "youdao-scrape", feature = "youdao"))]
+    Youdao(TranslatorKind),
     /// For Baidu Translate
-    #[cfg(feature = "baidu-scrape")]
-    Baidu,
+    #[cfg(any(feature = "baidu-scrape", feature = "baidu"))]
+    Baidu(TranslatorKind),
     #[cfg(feature = "nllb")]
     Nllb(Device, ModelFormat, NllbModelType),
     #[cfg(feature = "m2m100")]
@@ -121,9 +130,9 @@ impl std::fmt::Display for Translator {
             #[cfg(feature = "papago")]
             Translator::Papago => write!(f, "Papago"),
             #[cfg(feature = "youdao")]
-            Translator::Youdao => write!(f, "Youdao"),
+            Translator::Youdao(_) => write!(f, "Youdao"),
             #[cfg(feature = "baidu")]
-            Translator::Baidu => write!(f, "Baidu"),
+            Translator::Baidu(_) => write!(f, "Baidu"),
             #[cfg(feature = "nllb")]
             Translator::Nllb(_, _, _) => write!(f, "Nllb"),
             #[cfg(feature = "m2m100")]
@@ -188,6 +197,8 @@ impl Translator {
                 | Translator::ChatGPT(_, _, _, _)
                 | Translator::LibreTranslate
                 | Translator::MyMemory
+                | Translator::Youdao(TranslatorKind::Api)
+                | Translator::Baidu(TranslatorKind::Api)
         )
     }
 
@@ -198,8 +209,8 @@ impl Translator {
             Translator::Google
                 | Translator::Bing
                 | Translator::Papago
-                | Translator::Youdao
-                | Translator::Baidu
+                | Translator::Youdao(TranslatorKind::Scrape)
+                | Translator::Baidu(TranslatorKind::Scrape)
         )
     }
 
@@ -295,8 +306,8 @@ impl Translators {
                 Translator::LibreTranslate => lang.to_libretranslate_str(),
                 Translator::MyMemory => lang.to_mymemory_str(),
                 Translator::Papago => lang.to_papago_str(),
-                Translator::Youdao => lang.to_youdao_str(),
-                Translator::Baidu => lang.to_baidu_str(),
+                Translator::Youdao(_) => lang.to_youdao_str(),
+                Translator::Baidu(_) => lang.to_baidu_str(),
                 #[cfg(feature = "nllb")]
                 Translator::Nllb(_, _, _) => lang.to_nllb_str(),
                 #[cfg(feature = "m2m100")]

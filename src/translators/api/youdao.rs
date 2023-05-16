@@ -1,10 +1,11 @@
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::str::FromStr;
 
+use async_trait::async_trait;
 use chrono::Local;
 use reqwest::Client;
 use serde::Deserialize;
+use serde_json::Value;
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -13,13 +14,13 @@ use crate::translators::translator_structure::{
 };
 
 //https://docs.rs/crate/youdao/0.3.0/source/src/lib.rs
-pub struct YouDaoTranslator {
+pub struct YouDaoApiTranslator {
     app_key: String,
     app_secret: String,
 }
 #[async_trait]
 #[allow(dead_code)]
-impl TranslatorNoContext for YouDaoTranslator {
+impl TranslatorNoContext for YouDaoApiTranslator {
     async fn translate(
         &self,
         client: &Client,
@@ -37,18 +38,25 @@ impl TranslatorNoContext for YouDaoTranslator {
                 .unwrap_or_else(|| Ok("auto".to_string()))?,
             to.to_youdao_str()?,
         );
-        let resp: TextTranslateResult = client
+        let resp: TranslationResponse = client
             .post("https://openapi.youdao.com/api")
             .form(&params)
             .send()
             .await
-            .unwrap()
+            .map_err(Error::fetch)?
             .json()
             .await
-            .unwrap();
+            .map_err(Error::fetch)?;
         Ok(TranslationOutput {
-            text: resp.translation.unwrap().join("\n"),
-            lang: Language::from_str(&resp.l)?,
+            text: resp.translation.join("\n"),
+            lang: Language::from_str(
+                resp.l
+                    .split('2')
+                    .collect::<Vec<_>>()
+                    .first()
+                    .unwrap_or(&"unknown"),
+            )
+            .unwrap_or(Language::Unknown),
         })
     }
 
@@ -67,11 +75,11 @@ impl TranslatorNoContext for YouDaoTranslator {
     }
 }
 #[allow(dead_code)]
-impl YouDaoTranslator {
-    pub fn new(app_key: String, app_secret: String) -> YouDaoTranslator {
+impl YouDaoApiTranslator {
+    pub fn new(app_key: &str, app_secret: &str) -> Self {
         Self {
-            app_key,
-            app_secret,
+            app_key: app_key.to_string(),
+            app_secret: app_secret.to_string(),
         }
     }
 
@@ -105,25 +113,6 @@ impl YouDaoTranslator {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-#[serde(rename_all(deserialize = "camelCase"))]
-#[allow(dead_code)]
-pub struct TextTranslateResult {
-    pub return_phrase: Option<Vec<String>>,
-    pub query: Option<String>,
-    pub error_code: String,
-    pub l: String,
-    pub t_speak_url: Option<String>,
-    pub web: Option<Vec<Web>>,
-    pub request_id: Option<String>,
-    pub translation: Option<Vec<String>>,
-    pub dict: Option<Dict>,
-    pub webdict: Option<Dict>,
-    pub basic: Option<Basic>,
-    pub speak_url: Option<String>,
-    pub is_word: Option<bool>,
-}
-
 fn truncate(q: &str) -> String {
     if q.is_empty() {
         return "".to_string();
@@ -142,46 +131,26 @@ fn truncate(q: &str) -> String {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
+#[derive(Deserialize)]
 #[allow(dead_code)]
-pub struct Web {
-    pub key: String,
-    pub value: Vec<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
-#[allow(dead_code)]
-pub struct Dict {
-    pub url: String,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
-#[allow(dead_code)]
-pub struct Basic {
-    #[serde(rename = "exam_type")]
-    pub exam_type: Option<Vec<String>>,
-    pub phonetic: Option<String>,
-    #[serde(rename = "us-phonetic")]
-    pub us_phonetic: Option<String>,
-    #[serde(rename = "uk-phonetic")]
-    pub uk_phonetic: Option<String>,
-    pub wfs: Option<Vec<Wfs>>,
-    #[serde(rename = "uk-speech")]
-    pub uk_speech: Option<String>,
-    pub explains: Vec<String>,
-    #[serde(rename = "us-speech")]
-    pub us_speech: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
-#[allow(dead_code)]
-pub struct Wfs {
-    pub wf: Wf,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
-#[allow(dead_code)]
-pub struct Wf {
-    pub name: String,
-    pub value: String,
+struct TranslationResponse {
+    #[serde(rename = "tSpeakUrl")]
+    pub t_speak_url: String,
+    #[serde(rename = "requestId")]
+    pub request_id: String,
+    pub query: String,
+    #[serde(rename = "isDomainSupport")]
+    pub is_domain_support: bool,
+    pub translation: Vec<String>,
+    #[serde(rename = "mTerminalDict")]
+    pub m_terminal_dict: Value,
+    #[serde(rename = "errorCode")]
+    pub error_code: String,
+    pub dict: Value,
+    pub webdict: Value,
+    pub l: String,
+    #[serde(rename = "isWord")]
+    pub is_word: bool,
+    #[serde(rename = "speakUrl")]
+    pub speak_url: String,
 }
