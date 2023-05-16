@@ -9,12 +9,12 @@ pub mod translators;
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "offline_req"))]
-    use std::collections::HashMap;
     use dotenv::dotenv;
     #[cfg(feature = "offline_req")]
     use model_manager::model_manager::ModelManager;
     use reqwest::Client;
+    #[cfg(not(feature = "offline_req"))]
+    use std::collections::HashMap;
 
     use crate::detector;
     use crate::detector::Detectors;
@@ -26,6 +26,8 @@ mod tests {
     use crate::translators::chainer::TranslatorInfo;
     #[cfg(not(feature = "offline_req"))]
     use crate::translators::chainer::TranslatorSelectorInfo;
+    #[cfg(not(feature = "offline_req"))]
+    use crate::translators::context::Context;
     use crate::translators::dev::{get_csv_errors, get_languages};
     #[cfg(feature = "offline_req")]
     use crate::translators::offline::ctranslate2::model_management::{
@@ -43,8 +45,6 @@ mod tests {
     use crate::translators::translator_structure::TranslatorCTranslate;
     use crate::translators::translator_structure::TranslatorLanguages;
     use crate::translators::{Translator, Translators};
-    #[cfg(not(feature = "offline_req"))]
-    use crate::translators::context::Context;
 
     #[tokio::test]
     #[cfg(feature = "offline_req")]

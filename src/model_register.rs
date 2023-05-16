@@ -286,6 +286,45 @@ pub fn register(mm: &mut ModelManager) {
     );
     #[cfg(feature = "nllb")]
     models.insert(
+        "nllb-200-3.3B-ct2-float16".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-3.3B-ct2-float16").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-3.3B-ct2-float16".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-1.3B-ct2".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-1.3B-ct2").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-1.3B-ct2".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-1.3B-ct2-float16".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-1.3B-ct2-float16").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-1.3B-ct2-float16".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
         "nllb-200-1.3B-ct2-int8".to_string(),
         Model {
             directory: PathBuf::from_str("translators/nllb-200-1.3B-ct2-int8").unwrap(),
@@ -299,12 +338,66 @@ pub fn register(mm: &mut ModelManager) {
     );
     #[cfg(feature = "nllb")]
     models.insert(
+        "nllb-200-distilled-600M-ct2".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-distilled-600M-ct2").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-distilled-600M-ct2".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-distilled-600M-ct2-float16".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-distilled-600M-ct2-float16")
+                .unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-distilled-600M-ct2-float16".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
         "nllb-200-distilled-600M-ct2-int8".to_string(),
         Model {
             directory: PathBuf::from_str("translators/nllb-200-distilled-600M-ct2-int8").unwrap(),
             version: "05/13/2023".to_string(),
             source: ModelSource::Huggingface(HuggingfaceModel {
                 repo: "JustFrederik/nllb-200-distilled-600M-ct2-int8".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-distilled-1.3B-ct2".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-distilled-1.3B-ct2").unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-distilled-1.3B-ct2".to_string(),
+                files: nllb.clone(),
+                commit: None,
+            }),
+        },
+    );
+    #[cfg(feature = "nllb")]
+    models.insert(
+        "nllb-200-distilled-1.3B-ct2-float16".to_string(),
+        Model {
+            directory: PathBuf::from_str("translators/nllb-200-distilled-1.3B-ct2-float16")
+                .unwrap(),
+            version: "05/13/2023".to_string(),
+            source: ModelSource::Huggingface(HuggingfaceModel {
+                repo: "JustFrederik/nllb-200-distilled-1.3B-ct2-float16".to_string(),
                 files: nllb.clone(),
                 commit: None,
             }),

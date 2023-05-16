@@ -1,3 +1,4 @@
+use log::info;
 #[cfg(feature = "offline_req")]
 use model_manager::model_manager::ModelManager;
 use reqwest::Client;
@@ -43,6 +44,7 @@ impl TranslatorInitialized {
     ) -> Result<Self, Error> {
         let data: TranslatorDyn = match &info.translator {
             Translator::Deepl => {
+                info!("Initializing deepl translator");
                 let deepl_token = tokens
                     .deepl_token
                     .as_ref()
@@ -50,6 +52,7 @@ impl TranslatorInitialized {
                 TranslatorDyn::NC(Box::new(DeeplTranslator::new(deepl_token)))
             }
             Translator::ChatGPT(model, op, p, temp) => {
+                info!("Initializing chatgpt translator");
                 let chat_gpt_token = tokens
                     .gpt_token
                     .as_ref()
@@ -62,37 +65,69 @@ impl TranslatorInitialized {
                     *temp,
                 )?))
             }
-            Translator::Google => TranslatorDyn::NC(Box::new(GoogleTranslator::new())),
-            Translator::Bing => TranslatorDyn::NC(Box::new(BingTranslator::new(client).await?)),
+            Translator::Google => {
+                info!("Initializing google translator");
+                TranslatorDyn::NC(Box::new(GoogleTranslator::new()))
+            }
+            Translator::Bing => {
+                info!("Initializing bing translator");
+
+                TranslatorDyn::NC(Box::new(BingTranslator::new(client).await?))
+            }
             Translator::LibreTranslate => {
+                info!("Initializing libre translator");
+
                 TranslatorDyn::NC(Box::new(LibreTranslateTranslator::new(&tokens.libre_token)))
             }
-            Translator::MyMemory => TranslatorDyn::NC(Box::new(MyMemoryTranslator::new())),
-            Translator::Papago => TranslatorDyn::NC(Box::new(PapagoTranslator::new())),
-            Translator::Youdao => TranslatorDyn::NC(Box::new(YoudaoTranslator::new())),
-            Translator::Baidu => TranslatorDyn::NC(Box::new(BaiduTranslator::new())),
+            Translator::MyMemory => {
+                info!("Initializing mymemory translator");
+                TranslatorDyn::NC(Box::new(MyMemoryTranslator::new()))
+            }
+            Translator::Papago => {
+                info!("Initializing papgo translator");
+                TranslatorDyn::NC(Box::new(PapagoTranslator::new()))
+            }
+            Translator::Youdao => {
+                info!("Initializing youdao translator");
+                TranslatorDyn::NC(Box::new(YoudaoTranslator::new()))
+            }
+            Translator::Baidu => {
+                info!("Initializing baidu translator");
+                TranslatorDyn::NC(Box::new(BaiduTranslator::new()))
+            }
             Translator::EdgeGPT(csc, path) => {
+                info!("Initializing edgegpt translator");
                 TranslatorDyn::WC(Box::new(EdgeGpt::new(csc, path).await?))
             }
             #[cfg(feature = "nllb")]
-            Translator::Nllb(device, model_format, model_type) => TranslatorDyn::Of(Box::new(
-                NllbTranslator::new(device, model_format, model_type, model_manager).await?,
-            )),
+            Translator::Nllb(device, model_format, model_type) => {
+                info!("Initializing nllb translator");
+                TranslatorDyn::Of(Box::new(
+                    NllbTranslator::new(device, model_format, model_type, model_manager).await?,
+                ))
+            }
             #[cfg(feature = "m2m100")]
-            Translator::M2M100(device, model_format, model_type) => TranslatorDyn::Of(Box::new(
-                M2M100Translator::new(device, model_format, model_type, model_manager).await?,
-            )),
+            Translator::M2M100(device, model_format, model_type) => {
+                info!("Initializing m2m100 translator");
+                TranslatorDyn::Of(Box::new(
+                    M2M100Translator::new(device, model_format, model_type, model_manager).await?,
+                ))
+            }
             #[cfg(feature = "jparacrawl")]
             Translator::JParaCrawl(device, model_format, model_type) => {
+                info!("Initializing jparacrawl translator");
                 TranslatorDyn::Of(Box::new(
                     JParaCrawlTranslator::new(device, model_format, model_type, model_manager)
                         .await?,
                 ))
             }
             #[cfg(feature = "sugoi")]
-            Translator::Sugoi(device, model_format) => TranslatorDyn::Of(Box::new(
-                SugoiTranslator::new(device, model_format, model_manager).await?,
-            )),
+            Translator::Sugoi(device, model_format) => {
+                info!("Initializing sugoi translator");
+                TranslatorDyn::Of(Box::new(
+                    SugoiTranslator::new(device, model_format, model_manager).await?,
+                ))
+            }
         };
         Ok(Self {
             data,

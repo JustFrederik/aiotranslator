@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::translators::offline::ctranslate2::tokenizer::Tokenizer;
 use crate::translators::offline::ctranslate2::Device;
+use log::info;
 use rustyctranslate2::CTranslator;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -36,6 +37,7 @@ impl CTranslateModels {
     ) -> Result<&mut CTranslator, Error> {
         let v = self.ctranslate2_models.get(ident);
         if v.is_none() {
+            info!("Loading ctranslate2 model {}", ident);
             let ctranslate2_model =
                 CTranslator::new(path, device.is_cuda(), compressed).map_err(Error::new_option)?;
             self.ctranslate2_models
@@ -52,6 +54,7 @@ impl CTranslateModels {
     pub fn cleanup(&mut self) {
         //TODO: remove only model that was created(multithreaded)
         if self.mode == ModelLifetime::Dispose {
+            info!("Unload ctranslate2 models");
             self.ctranslate2_models.clear();
         }
     }
@@ -80,6 +83,7 @@ impl TokenizerModels {
     pub fn get_tokenizer(&mut self, ident: &str, path: PathBuf) -> Result<&Tokenizer, Error> {
         let v = self.tokenizers.get(ident);
         if v.is_none() {
+            info!("Loading tokenizer {}", ident);
             let tokenizer = Tokenizer::new(&path, ident.to_string());
             self.tokenizers.insert(ident.to_string(), tokenizer);
             return self
@@ -96,6 +100,7 @@ impl TokenizerModels {
     pub fn cleanup(&mut self) {
         //TODO: remove only model that was created(multithreaded)
         if self.mode == ModelLifetime::Dispose {
+            info!("Unload tokenizers");
             self.tokenizers.clear();
         }
     }
