@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use async_trait::async_trait;
 #[cfg(feature = "fetch_languages")]
 use regex::Regex;
 use reqwest::blocking::Client;
@@ -30,7 +29,6 @@ impl Default for BaiduTranslator {
     }
 }
 
-#[async_trait]
 #[cfg(feature = "fetch_languages")]
 impl TranslatorLanguages for BaiduTranslator {
     /// returns all available languages
@@ -84,7 +82,6 @@ impl TranslatorLanguages for BaiduTranslator {
     }
 }
 
-#[async_trait]
 impl TranslatorNoContext for BaiduTranslator {
     fn translate(
         &self,

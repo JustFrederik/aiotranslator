@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use async_trait::async_trait;
 use reqwest::blocking::Client;
 use reqwest::header::{ORIGIN, REFERER};
 #[cfg(feature = "fetch_languages")]
@@ -72,7 +71,6 @@ impl YoudaoTranslator {
     }
 }
 
-#[async_trait]
 impl TranslatorNoContext for YoudaoTranslator {
     fn translate(
         &self,
