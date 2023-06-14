@@ -39,7 +39,7 @@ llm = { git = "https://github.com/rustformers/llm" , branch = "main", optional =
 rand = { version = "0.8.4", optional = true }
 
 [features]
-default = ["whatlang-detector", "online", "fetch_languages", "generate", "offline"]
+default = ["whatlang-detector", "online", "fetch_languages", "generate"]
 
 whatlang-detector = ["dep:whatlang"]
 lingua-detector = ["dep:lingua"]
