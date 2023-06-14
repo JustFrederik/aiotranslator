@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
-use async_trait::async_trait;
+use reqwest::blocking::Client;
 use reqwest::header::{ORIGIN, REFERER};
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
@@ -19,9 +18,8 @@ pub struct LibreTranslateTranslator {
     api_key: Option<String>,
 }
 
-#[async_trait]
 impl TranslatorNoContext for LibreTranslateTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -43,10 +41,8 @@ impl TranslatorNoContext for LibreTranslateTranslator {
             .header(ORIGIN, &self.host)
             .json(&data)
             .send()
-            .await
             .map_err(|e| Error::new(format!("Failed to send request to {}", self.host), e))?
             .json()
-            .await
             .map_err(|e| Error::new("Failed to get response text", e))?;
 
         Ok(match req {
@@ -61,32 +57,29 @@ impl TranslatorNoContext for LibreTranslateTranslator {
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let temp = self.translate(client, &query.join("\n"), from, to).await?;
+        let v = self.translate(client, &query.join("\n"), from, to)?;
         Ok(TranslationVecOutput {
-            text: temp.text.split('\n').map(|v| v.to_string()).collect(),
-            lang: temp.lang,
+            text: v.text.split('\n').map(|v| v.to_string()).collect(),
+            lang: v.lang,
         })
     }
 }
 
-#[async_trait]
 #[cfg(feature = "fetch_languages")]
 impl TranslatorLanguages for LibreTranslateTranslator {
-    async fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
+    fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
         let mut data: Vec<LanguagesResponse> = client
             .get("https://libretranslate.com/languages")
             .send()
-            .await
             .map_err(|e| Error::new("Failed to get response text", e))?
             .json()
-            .await
             .map_err(|e| Error::new("Failed to get response text", e))?;
         if data.is_empty() {
             return Err(Error::new(

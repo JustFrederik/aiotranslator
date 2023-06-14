@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use futures::{stream, StreamExt};
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 use model_manager::model_manager::ModelManager;
-use reqwest::Client;
+use reqwest::blocking::Client;
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -13,6 +12,7 @@ use crate::translators::Translator;
 
 /// An enum where it is defined if Selctive, SelectiveChain or Chain is used.
 /// The Translators are not initialized yet.
+#[derive(Clone)]
 pub enum TranslatorSelectorInfo {
     /// A hashmap with the from langauge as a key and a TranslatorData as a value, which contains target langauge and the translator.
     /// Second value is default
@@ -46,78 +46,60 @@ pub enum TranslatorSelectorInitilized {
 
 impl TranslatorSelectorInitilized {
     /// This function converts the TranslatorSelectorInfo to a TranslatorSelector and therefore initializes the translator.
-    pub async fn from_info(
+    pub fn from_info(
         info: TranslatorSelectorInfo,
         tokens: &Tokens,
-        cc: usize,
         client: &Client,
-        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
+        #[cfg(feature = "ctranslate_req")] model_manager: &ModelManager,
     ) -> Result<Self, Error> {
         Ok(match info {
             TranslatorSelectorInfo::Selective(v, default) => {
                 let mut v = v;
                 v.insert(Language::Unknown, default.translator);
-                Self::Selective(
-                    convert_selective_hashmap(
-                        v,
-                        tokens,
-                        &default.to,
-                        cc,
-                        client,
-                        #[cfg(feature = "offline_req")]
-                        model_manager,
-                    )
-                    .await?,
-                )
+                Self::Selective(convert_selective_hashmap(
+                    v,
+                    tokens,
+                    &default.to,
+                    client,
+                    #[cfg(feature = "ctranslate_req")]
+                    model_manager,
+                )?)
             }
             TranslatorSelectorInfo::SelectiveChain(v, default) => {
                 let mut v = v;
                 v.insert(Language::Unknown, default);
-                Self::SelectiveChain(
-                    convert_selective_chain(
-                        v,
-                        tokens,
-                        cc,
-                        client,
-                        #[cfg(feature = "offline_req")]
-                        model_manager,
-                    )
-                    .await?,
-                )
+                Self::SelectiveChain(convert_selective_chain(
+                    v,
+                    tokens,
+                    client,
+                    #[cfg(feature = "ctranslate_req")]
+                    model_manager,
+                )?)
             }
-            TranslatorSelectorInfo::Chain(v) => Self::Chain(
-                convert_chain(
-                    v,
-                    tokens,
-                    cc,
-                    client,
-                    #[cfg(feature = "offline_req")]
-                    model_manager,
-                )
-                .await?,
-            ),
-            TranslatorSelectorInfo::List(v) => Self::List(
-                convert_chain(
-                    v,
-                    tokens,
-                    cc,
-                    client,
-                    #[cfg(feature = "offline_req")]
-                    model_manager,
-                )
-                .await?,
-            ),
+            TranslatorSelectorInfo::Chain(v) => Self::Chain(convert_chain(
+                v,
+                tokens,
+                client,
+                #[cfg(feature = "ctranslate_req")]
+                model_manager,
+            )?),
+            TranslatorSelectorInfo::List(v) => Self::List(convert_chain(
+                v,
+                tokens,
+                client,
+                #[cfg(feature = "ctranslate_req")]
+                model_manager,
+            )?),
         })
     }
 }
 
 /// Initializes every value in HashMap of Selective chain
-async fn convert_selective_chain(
+fn convert_selective_chain(
     translator_info_map: HashMap<Language, TranslatorInfo>,
     tokens: &Tokens,
-    cc: usize,
     client: &Client,
-    #[cfg(feature = "offline_req")] model_manager: &ModelManager,
+    #[cfg(feature = "ctranslate_req")] model_manager: &ModelManager,
 ) -> Result<HashMap<Language, TranslatorInitialized>, Error> {
     let mut translator_data_map = HashMap::new();
 
@@ -145,34 +127,22 @@ async fn convert_selective_chain(
                 value,
                 tokens,
                 client,
-                #[cfg(feature = "offline_req")]
+                #[cfg(feature = "ctranslate_req")]
                 model_manager,
-            ),
+            )?,
         );
     }
 
-    let u = stream::iter(translator_data_map)
-        .map(|v| async move { (v.0, v.1.await) })
-        .buffer_unordered(cc);
-    let v = u
-        .map(|v| (v.0, v.1))
-        .collect::<HashMap<Language, Result<TranslatorInitialized, Error>>>()
-        .await;
-    let mut res = HashMap::new();
-    for (key, value) in v {
-        res.insert(key, value?);
-    }
-    Ok(res)
+    Ok(translator_data_map)
 }
 
 /// Initializes every value in HashMap of Selective
-async fn convert_selective_hashmap(
+fn convert_selective_hashmap(
     translator_info_map: HashMap<Language, Translator>,
     tokens: &Tokens,
     to: &Language,
-    cc: usize,
     client: &Client,
-    #[cfg(feature = "offline_req")] model_manager: &ModelManager,
+    #[cfg(feature = "ctranslate_req")] model_manager: &ModelManager,
 ) -> Result<HashMap<Language, TranslatorInitialized>, Error> {
     let mut translator_data_map = HashMap::new();
     for (key, value) in translator_info_map {
@@ -185,33 +155,20 @@ async fn convert_selective_hashmap(
                 },
                 tokens,
                 client,
-                #[cfg(feature = "offline_req")]
+                #[cfg(feature = "ctranslate_req")]
                 model_manager,
-            ),
+            )?,
         );
     }
-
-    let u = stream::iter(translator_data_map)
-        .map(|v| async move { (v.0, v.1.await) })
-        .buffer_unordered(cc);
-    let v = u
-        .map(|v| (v.0, v.1))
-        .collect::<HashMap<Language, Result<TranslatorInitialized, Error>>>()
-        .await;
-    let mut res = HashMap::new();
-    for (key, value) in v {
-        res.insert(key, value?);
-    }
-    Ok(res)
+    Ok(translator_data_map)
 }
 
 /// Initializes every value in Vec of chain
-async fn convert_chain(
+fn convert_chain(
     vec: Vec<TranslatorInfo>,
     tokens: &Tokens,
-    cc: usize,
     client: &Client,
-    #[cfg(feature = "offline_req")] model_manager: &ModelManager,
+    #[cfg(feature = "ctranslate_req")] model_manager: &ModelManager,
 ) -> Result<Vec<TranslatorInitialized>, Error> {
     let mut res = vec![];
     for v in vec {
@@ -219,25 +176,14 @@ async fn convert_chain(
             v,
             tokens,
             client,
-            #[cfg(feature = "offline_req")]
+            #[cfg(feature = "ctranslate_req")]
             model_manager,
-        ));
-    }
-
-    let u = stream::iter(res)
-        .map(|v| async move { v.await })
-        .buffer_unordered(cc);
-    let v = u
-        .collect::<Vec<Result<TranslatorInitialized, Error>>>()
-        .await;
-
-    let mut res = vec![];
-    for value in v {
-        res.push(value?);
+        )?);
     }
     Ok(res)
 }
 
+#[derive(Clone)]
 /// This represents a single translator with a target language
 pub struct TranslatorInfo {
     /// Translator

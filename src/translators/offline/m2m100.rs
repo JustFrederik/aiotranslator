@@ -9,12 +9,26 @@ use crate::translators::translator_structure::{TranslationVecOutput, TranslatorC
 use model_manager::model_manager::ModelManager;
 use rustyctranslate2::BatchType;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum M2M100ModelType {
     Small418m,
     #[default]
     Big12b,
+}
+
+impl FromStr for M2M100ModelType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "" => Ok(Self::Big12b),
+            "Small418m" => Ok(Self::Small418m),
+            "Big12b" => Ok(Self::Big12b),
+            _ => Err(()),
+        }
+    }
 }
 
 pub struct M2M100Translator {
@@ -45,7 +59,7 @@ impl TranslatorCTranslate for M2M100Translator {
             self.model_format.is_compressed(),
         )?;
         let translated = translator
-            .translate_batch_target(tokens, None, BatchType::Example, target)
+            .translate_batch_target(tokens, None, BatchType::Example, None, target)
             .map_err(Error::new_option)?;
         let sentences = tokenizer
             .detokenize(translated)?
@@ -62,7 +76,7 @@ impl TranslatorCTranslate for M2M100Translator {
 }
 
 impl M2M100Translator {
-    pub async fn new(
+    pub fn new(
         device: &Device,
         model_format: &ModelFormat,
         model_type: &M2M100ModelType,
@@ -70,8 +84,7 @@ impl M2M100Translator {
     ) -> Result<Self, Error> {
         let ident = Self::get_model_name(device, model_format, model_type);
         let model = model_manager
-            .get_model_async(&ident)
-            .await
+            .get_model(&ident)
             .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
         Ok(Self {
             base_path: model.0.join(&model.1.directory),

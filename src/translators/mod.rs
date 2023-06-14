@@ -1,19 +1,14 @@
 use std::fmt::Formatter;
-use std::future::Future;
-#[cfg(feature = "retries")]
+use std::str::FromStr;
 use std::time::Duration;
 use std::vec;
 
-#[cfg(feature = "retries")]
-use futures::future::FutureExt;
-#[cfg(not(feature = "offline_req"))]
-use futures::{stream, StreamExt};
-use log::{info, warn};
-#[cfg(feature = "offline_req")]
+use log::info;
+#[cfg(feature = "ctranslate_req")]
 use model_manager::model_manager::ModelManager;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use strum::IntoEnumIterator;
-use strum_macros::{EnumIter, EnumString, IntoStaticStr};
+use strum_macros::EnumIter;
 
 use crate::detector::{detect_language, Detectors};
 use crate::error::Error;
@@ -21,11 +16,11 @@ use crate::languages::Language;
 use crate::translators::api::chatgpt::ChatGPTModel;
 use crate::translators::chainer::{TranslatorSelectorInfo, TranslatorSelectorInitilized};
 use crate::translators::context::Context;
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 use crate::translators::offline::ctranslate2::model_management::{
     CTranslateModels, TokenizerModels,
 };
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 use crate::translators::offline::ctranslate2::Device;
 #[cfg(feature = "jparacrawl")]
 use crate::translators::offline::jparacrawl::JParaCrawlModelType;
@@ -33,7 +28,7 @@ use crate::translators::offline::jparacrawl::JParaCrawlModelType;
 use crate::translators::offline::m2m100::M2M100ModelType;
 #[cfg(feature = "nllb")]
 use crate::translators::offline::nllb::NllbModelType;
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 use crate::translators::offline::ModelFormat;
 use crate::translators::tokens::Tokens;
 use crate::translators::translator_initilized::TranslatorInitialized;
@@ -53,12 +48,25 @@ pub mod tokens;
 mod translator_initilized;
 pub mod translator_structure;
 
-#[derive(Default, PartialEq, Eq, EnumString, IntoStaticStr, Clone, Debug)]
+#[derive(Default, PartialEq, Eq, Clone, Debug)]
 pub enum ConversationStyleClone {
     Creative,
     #[default]
     Balanced,
     Precise,
+}
+
+impl FromStr for ConversationStyleClone {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Creative" => Ok(Self::Creative),
+            "Balanced" => Ok(Self::Balanced),
+            "Precise" => Ok(Self::Precise),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Default, Clone, PartialEq, Eq, Debug)]
@@ -67,6 +75,16 @@ pub enum TranslatorKind {
     Api,
     #[cfg(any(feature = "youdao-scrape", feature = "baidu-scrape"))]
     Scrape,
+}
+
+impl TranslatorKind {
+    pub fn new_api(y: bool) -> Self {
+        if y {
+            Self::Api
+        } else {
+            Self::Scrape
+        }
+    }
 }
 
 /// Enum Containing all the translators
@@ -78,7 +96,7 @@ pub enum Translator {
     Deepl,
     /// For Chatgpt Translate with API key structure Chatgpt(model, proxy_gpt3, proxy_gpt4, temperature)
     #[cfg(feature = "chatgpt")]
-    ChatGPT(ChatGPTModel, String, String, f32),
+    ChatGPT(ChatGPTModel, String, String, f32, Duration),
     EdgeGPT(ConversationStyleClone, String),
     /// For Google Translate
     Google,
@@ -116,7 +134,7 @@ impl std::fmt::Display for Translator {
             #[cfg(feature = "deepl")]
             Translator::Deepl => write!(f, "Deepl"),
             #[cfg(feature = "chatgpt")]
-            Translator::ChatGPT(_, _, _, _) => write!(f, "ChatGPT"),
+            Translator::ChatGPT(_, _, _, _, _) => write!(f, "ChatGPT"),
             #[cfg(feature = "edge-gpt-scrape")]
             Translator::EdgeGPT(_, _) => write!(f, "EdgeGPT"),
             #[cfg(feature = "google-scrape")]
@@ -142,6 +160,83 @@ impl std::fmt::Display for Translator {
             #[cfg(feature = "sugoi")]
             Translator::Sugoi(_, _) => write!(f, "Sugui"),
         }
+    }
+}
+
+impl FromStr for Translator {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut s = match s.contains(' ') {
+            true => s.split(' ').collect::<Vec<&str>>(),
+            false => vec![s],
+        };
+        Ok(match s.remove(0) {
+            #[cfg(feature = "deepl")]
+            "deepl" => Self::Deepl,
+            #[cfg(feature = "chatgpt")]
+            "chatgpt" => {
+                let model = ChatGPTModel::from_str(s.remove(0)).map_err(|_| ())?;
+                let temp = s.remove(0).parse().map_err(|_| ())?;
+                let wait_ms = s.remove(0).parse().map_err(|_| ())?;
+                Self::ChatGPT(
+                    model,
+                    "".to_string(),
+                    "".to_string(),
+                    temp,
+                    Duration::from_millis(wait_ms),
+                )
+            }
+            "edgegpt" => {
+                let style = ConversationStyleClone::from_str(s.remove(0)).map_err(|_| ())?;
+                let auth = s.remove(0);
+                Self::EdgeGPT(style, auth.to_string())
+            }
+            "google" => Self::Google,
+            #[cfg(feature = "bing-scrape")]
+            "bing" => Self::Bing,
+            #[cfg(feature = "libre")]
+            "libretranslate" => Self::LibreTranslate,
+            #[cfg(feature = "mymemory")]
+            "mymemory" => Self::MyMemory,
+            #[cfg(feature = "papago-scrape")]
+            "papago" => Self::Papago,
+            #[cfg(any(feature = "youdao-scrape", feature = "youdao"))]
+            "youdao" => {
+                let tk = TranslatorKind::new_api(s.remove(0).parse().map_err(|_| ())?);
+                Self::Youdao(tk)
+            }
+            #[cfg(any(feature = "baidu-scrape", feature = "baidu"))]
+            "baidu" => {
+                let tk = TranslatorKind::new_api(s.remove(0).parse().map_err(|_| ())?);
+                Self::Baidu(tk)
+            }
+            #[cfg(feature = "nllb")]
+            "nllb" => {
+                let d = Device::gpu(s.remove(0).parse().map_err(|_| ())?);
+                let mf = ModelFormat::Compact;
+                let mtype = NllbModelType::from_str(s.remove(0)).map_err(|_| ())?;
+                Self::Nllb(d, mf, mtype)
+            }
+            #[cfg(feature = "m2m100")]
+            "m2m100" => {
+                let d = Device::gpu(s.remove(0).parse().map_err(|_| ())?);
+                let mtype = M2M100ModelType::from_str(s.remove(0)).map_err(|_| ())?;
+                Self::M2M100(d, ModelFormat::Compact, mtype)
+            }
+            #[cfg(feature = "jparacrawl")]
+            "jparacrawl" => {
+                let d = Device::gpu(s.remove(0).parse().map_err(|_| ())?);
+                let mtype = JParaCrawlModelType::from_str(s.remove(0)).map_err(|_| ())?;
+                Self::JParaCrawl(d, ModelFormat::Compact, mtype)
+            }
+            #[cfg(feature = "sugoi")]
+            "sugoi" => {
+                let d = Device::gpu(s.remove(0).parse().map_err(|_| ())?);
+                Self::Sugoi(d, ModelFormat::Compact)
+            }
+            _ => return Err(()),
+        })
     }
 }
 
@@ -182,7 +277,7 @@ impl Translator {
             .filter(|v| v.is_api())
             .filter(|v| match v {
                 Translator::Deepl => tokens.deepl_token.is_some(),
-                Translator::ChatGPT(_, _, _, _) => tokens.gpt_token.is_some(),
+                Translator::ChatGPT(_, _, _, _, _) => tokens.gpt_token.is_some(),
                 Translator::LibreTranslate => tokens.libre_token.is_some(),
                 _ => false,
             })
@@ -194,7 +289,7 @@ impl Translator {
         matches!(
             self,
             Translator::Deepl
-                | Translator::ChatGPT(_, _, _, _)
+                | Translator::ChatGPT(_, _, _, _, _)
                 | Translator::LibreTranslate
                 | Translator::MyMemory
                 | Translator::Youdao(TranslatorKind::Api)
@@ -224,11 +319,9 @@ impl Translator {
 pub struct Translators {
     /// Translators that are used, like chain, selctive or selective chain
     pub translators: TranslatorSelectorInitilized,
-    /// The delay between retries, when a translator fails
-    #[cfg(feature = "retries")]
+
     pub retry_delay: Option<Duration>,
-    /// The number of retries, when a translator fails, if None, it will retry forever
-    #[cfg(feature = "retries")]
+
     pub retry_count: Option<u32>,
     /// Choose between langauge detection
     pub detector: Detectors,
@@ -253,13 +346,13 @@ impl Translators {
         }
     }
     /// This will initiliaze the translator Service
-    pub async fn new(
+    pub fn new(
         tokens: Option<Tokens>,
         selector: TranslatorSelectorInfo,
-        #[cfg(feature = "retries")] retry_delay: Option<Duration>,
-        #[cfg(feature = "retries")] retry_count: Option<u32>,
+        retry_delay: Option<Duration>,
+        retry_count: Option<u32>,
         detector: Detectors,
-        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
+        #[cfg(feature = "ctranslate_req")] model_manager: &ModelManager,
     ) -> Result<Self, Error> {
         let client = Default::default();
         let tokens = match tokens {
@@ -270,17 +363,13 @@ impl Translators {
         let translators = Self::generate_chain(
             selector,
             &tokens,
-            5,
             &client,
-            #[cfg(feature = "offline_req")]
+            #[cfg(feature = "ctranslate_req")]
             model_manager,
-        )
-        .await?;
+        )?;
         Ok(Self {
             translators,
-            #[cfg(feature = "retries")]
             retry_delay,
-            #[cfg(feature = "retries")]
             retry_count,
             detector,
             tokens,
@@ -290,17 +379,18 @@ impl Translators {
     }
 
     /// This will generate the chain of translators/selective translators and the default translator
-    async fn generate_chain(
+    fn generate_chain(
         selector: TranslatorSelectorInfo,
         tokens: &Tokens,
-        cc: usize,
         client: &Client,
-        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
+        #[cfg(feature = "ctranslate_req")] model_manager: &ModelManager,
     ) -> Result<TranslatorSelectorInitilized, Error> {
         let check_available = |lang: &Language, translator: &Translator| -> Result<String, Error> {
             match translator {
                 Translator::Deepl => lang.to_deepl_str(),
-                Translator::ChatGPT(_, _, _, _) | Translator::EdgeGPT(_, _) => lang.to_name_str(),
+                Translator::ChatGPT(_, _, _, _, _) | Translator::EdgeGPT(_, _) => {
+                    lang.to_name_str()
+                }
                 Translator::Google => lang.to_google_str(),
                 Translator::Bing => lang.to_bing_str(),
                 Translator::LibreTranslate => lang.to_libretranslate_str(),
@@ -346,22 +436,20 @@ impl Translators {
         TranslatorSelectorInitilized::from_info(
             selector,
             tokens,
-            cc,
             client,
-            #[cfg(feature = "offline_req")]
+            #[cfg(feature = "ctranslate_req")]
             model_manager,
         )
-        .await
     }
 
     /// The call to translate a string
-    pub async fn translate(
+    pub fn translate(
         &self,
         text: String,
         from: Option<Language>,
         context_data: &[Context],
-        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
-        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
+        #[cfg(feature = "ctranslate_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "ctranslate_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<Vec<TranslationOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &text)?;
@@ -374,10 +462,7 @@ impl Translators {
             return Err(Error::new_option("No translator found"));
         }
 
-        let mut translations: Vec<TranslationOutput> = vec![TranslationOutput {
-            text: text.to_string(),
-            lang,
-        }];
+        let mut translations: Vec<TranslationOutput> = vec![TranslationOutput { text, lang }];
 
         match &self.translators {
             TranslatorSelectorInitilized::List(items) => {
@@ -402,27 +487,18 @@ impl Translators {
                 };
 
                 //TODO: replace with multithreaded version
-                #[cfg(not(feature = "offline_req"))]
-                let u = stream::iter(items)
-                    .map(|v| async { self.translate_fetch(&queries, from, context_data, v).await })
-                    .buffer_unordered(self.max_sim_conn);
-                #[cfg(not(feature = "offline_req"))]
-                let v = u.collect::<Vec<Result<TranslationOutput, Error>>>().await;
-                #[cfg(feature = "offline_req")]
                 let mut v = vec![];
-                #[cfg(feature = "offline_req")]
                 for item in items {
-                    v.push(
-                        self.translate_fetch(
-                            &queries,
-                            from,
-                            context_data,
-                            item,
-                            translator_models,
-                            tokenizer_models,
-                        )
-                        .await,
-                    );
+                    v.push(self.translate_fetch(
+                        &queries,
+                        from,
+                        context_data,
+                        item,
+                        #[cfg(feature = "ctranslate_req")]
+                        translator_models,
+                        #[cfg(feature = "ctranslate_req")]
+                        tokenizer_models,
+                    ));
                 }
                 for value in v {
                     translations.push(value?);
@@ -449,21 +525,18 @@ impl Translators {
                             from,
                         ),
                     };
-                    #[cfg(feature = "offline_req")]
-                    let text = self
-                        .translate_fetch(
-                            &query,
-                            from,
-                            context_data,
-                            translator,
-                            translator_models,
-                            tokenizer_models,
-                        )
-                        .await?;
-                    #[cfg(not(feature = "offline_req"))]
-                    let text = self
-                        .translate_fetch(&query, from, context_data, translator)
-                        .await?;
+                    #[cfg(feature = "ctranslate_req")]
+                    let text = self.translate_fetch(
+                        &query,
+                        from,
+                        context_data,
+                        translator,
+                        translator_models,
+                        tokenizer_models,
+                    )?;
+
+                    #[cfg(not(feature = "ctranslate_req"))]
+                    let text = self.translate_fetch(&query, from, context_data, translator)?;
                     if translations.len() == 1 {
                         if let Some(v) = translations.last_mut() {
                             if v.lang == Language::Unknown && text.lang != Language::Unknown {
@@ -480,14 +553,14 @@ impl Translators {
         Ok(translations)
     }
 
-    async fn translate_fetch(
+    fn translate_fetch(
         &self,
         query: &str,
         from: Option<Language>,
         context_data: &[Context],
         translator: &TranslatorInitialized,
-        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
-        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
+        #[cfg(feature = "ctranslate_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "ctranslate_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<TranslationOutput, Error> {
         info!(
             "Translate \"{}\" with {}",
@@ -496,14 +569,30 @@ impl Translators {
         );
         let text = match &translator.data {
             TranslatorDyn::WC(v) => {
-                self.retry(v.translate(&self.client, query, from, &translator.to, context_data))
-                    .await?
+                let mut temp;
+                let mut retry = 0;
+                loop {
+                    temp = v.translate(&self.client, query, from, &translator.to, context_data);
+                    retry += 1;
+                    if temp.is_ok() || retry > self.retry_count.unwrap_or(3) {
+                        break;
+                    }
+                }
+                temp?
             }
             TranslatorDyn::NC(v) => {
-                self.retry(v.translate(&self.client, query, from, &translator.to))
-                    .await?
+                let mut temp;
+                let mut retry = 0;
+                loop {
+                    temp = v.translate(&self.client, query, from, &translator.to);
+                    retry += 1;
+                    if temp.is_ok() || retry > self.retry_count.unwrap_or(3) {
+                        break;
+                    }
+                }
+                temp?
             }
-            #[cfg(feature = "offline_req")]
+            #[cfg(feature = "ctranslate_req")]
             TranslatorDyn::Of(v) => v.translate(
                 translator_models,
                 tokenizer_models,
@@ -520,13 +609,13 @@ impl Translators {
     }
 
     /// The call to translate a vec of strings
-    pub async fn translate_vec(
+    pub fn translate_vec(
         &self,
         queries: Vec<String>,
         from: Option<Language>,
         context_data: &[Context],
-        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
-        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
+        #[cfg(feature = "ctranslate_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "ctranslate_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<Vec<TranslationVecOutput>, Error> {
         let add_from_lang = from.is_some();
         let lang = self.get_lang(from, &queries.join("\n"))?;
@@ -565,32 +654,18 @@ impl Translators {
                     ),
                 };
                 //TODO: replace with multithreaded version
-                #[cfg(not(feature = "offline_req"))]
-                let u = stream::iter(items)
-                    .map(|v| async {
-                        self.translate_vec_fetch(queries, from, v, context_data)
-                            .await
-                    })
-                    .buffer_unordered(self.max_sim_conn);
-                #[cfg(not(feature = "offline_req"))]
-                let v = u
-                    .collect::<Vec<Result<TranslationVecOutput, Error>>>()
-                    .await;
-                #[cfg(feature = "offline_req")]
                 let mut v = vec![];
-                #[cfg(feature = "offline_req")]
                 for item in items {
-                    v.push(
-                        self.translate_vec_fetch(
-                            queries,
-                            from,
-                            item,
-                            context_data,
-                            translator_models,
-                            tokenizer_models,
-                        )
-                        .await,
-                    );
+                    v.push(self.translate_vec_fetch(
+                        queries,
+                        from,
+                        item,
+                        context_data,
+                        #[cfg(feature = "ctranslate_req")]
+                        translator_models,
+                        #[cfg(feature = "ctranslate_req")]
+                        tokenizer_models,
+                    ));
                 }
                 for value in v {
                     translations.push(value?);
@@ -618,18 +693,16 @@ impl Translators {
                             from,
                         ),
                     };
-                    let text = self
-                        .translate_vec_fetch(
-                            queries,
-                            from,
-                            translator,
-                            context_data,
-                            #[cfg(feature = "offline_req")]
-                            translator_models,
-                            #[cfg(feature = "offline_req")]
-                            tokenizer_models,
-                        )
-                        .await?;
+                    let text = self.translate_vec_fetch(
+                        queries,
+                        from,
+                        translator,
+                        context_data,
+                        #[cfg(feature = "ctranslate_req")]
+                        translator_models,
+                        #[cfg(feature = "ctranslate_req")]
+                        tokenizer_models,
+                    )?;
                     if translations.len() == 1 {
                         if let Some(v) = translations.last_mut() {
                             if v.lang == Language::Unknown && text.lang != Language::Unknown {
@@ -645,14 +718,14 @@ impl Translators {
         Ok(translations)
     }
 
-    async fn translate_vec_fetch(
+    fn translate_vec_fetch(
         &self,
         queries: &[String],
         from: Option<Language>,
         translator: &TranslatorInitialized,
         context_data: &[Context],
-        #[cfg(feature = "offline_req")] translator_models: &mut CTranslateModels,
-        #[cfg(feature = "offline_req")] tokenizer_models: &mut TokenizerModels,
+        #[cfg(feature = "ctranslate_req")] translator_models: &mut CTranslateModels,
+        #[cfg(feature = "ctranslate_req")] tokenizer_models: &mut TokenizerModels,
     ) -> Result<TranslationVecOutput, Error> {
         info!(
             "Translate {:?} with {}",
@@ -661,20 +734,31 @@ impl Translators {
         );
         match &translator.data {
             TranslatorDyn::WC(v) => {
-                self.retry(v.translate_vec(
-                    &self.client,
-                    queries,
-                    from,
-                    &translator.to,
-                    context_data,
-                ))
-                .await
+                let mut temp;
+                let mut retry = 0;
+                loop {
+                    temp =
+                        v.translate_vec(&self.client, queries, from, &translator.to, context_data);
+                    retry += 1;
+                    if temp.is_ok() || retry > self.retry_count.unwrap_or(3) {
+                        break;
+                    }
+                }
+                temp
             }
             TranslatorDyn::NC(v) => {
-                self.retry(v.translate_vec(&self.client, queries, from, &translator.to))
-                    .await
+                let mut temp;
+                let mut retry = 0;
+                loop {
+                    temp = v.translate_vec(&self.client, queries, from, &translator.to);
+                    retry += 1;
+                    if temp.is_ok() || retry > self.retry_count.unwrap_or(3) {
+                        break;
+                    }
+                }
+                temp
             }
-            #[cfg(feature = "offline_req")]
+            #[cfg(feature = "ctranslate_req")]
             TranslatorDyn::Of(v) => v.translate_vec(
                 translator_models,
                 tokenizer_models,
@@ -683,42 +767,6 @@ impl Translators {
                 &translator.to,
             ),
         }
-    }
-
-    /// Function to retry on error
-    #[cfg(feature = "retries")]
-    async fn retry<F: Future<Output = Result<T, Error>>, T: Clone>(
-        &self,
-        f: F,
-    ) -> Result<T, Error> {
-        let mut retry_count = 0;
-        let max = self.retry_count.unwrap_or(1);
-        let delay = self.retry_delay.unwrap_or(Duration::from_secs(1));
-        let mut res = Err(Error::new_option("No result yet"));
-        let f = f.shared();
-        while retry_count < max {
-            let fc = f.clone();
-            res = fc.await;
-            if res.is_ok() {
-                break;
-            }
-            warn!("Retry {} of {}", retry_count, max);
-            if self.retry_count.is_some() {
-                retry_count += 1;
-            }
-            tokio::time::sleep(delay).await;
-        }
-        res
-    }
-
-    #[cfg(not(feature = "retries"))]
-    /// Function that does nothing, but is needed for retries feature.
-    /// This function will be called when the retry feature is not enabled.
-    async fn retry<F: Future<Output = Result<T, Error>>, T: Clone>(
-        &self,
-        f: F,
-    ) -> Result<T, Error> {
-        f.await
     }
 
     /// This generates a chain of translators. If no translator is found, it will add the default translator as the last translator.

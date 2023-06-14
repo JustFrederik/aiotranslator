@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use async_trait::async_trait;
 use chrono::Local;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -18,10 +17,9 @@ pub struct YouDaoApiTranslator {
     app_key: String,
     app_secret: String,
 }
-#[async_trait]
 #[allow(dead_code)]
 impl TranslatorNoContext for YouDaoApiTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -42,10 +40,8 @@ impl TranslatorNoContext for YouDaoApiTranslator {
             .post("https://openapi.youdao.com/api")
             .form(&params)
             .send()
-            .await
             .map_err(Error::fetch)?
             .json()
-            .await
             .map_err(Error::fetch)?;
         Ok(TranslationOutput {
             text: resp.translation.join("\n"),
@@ -60,14 +56,14 @@ impl TranslatorNoContext for YouDaoApiTranslator {
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let v = self.translate(client, &query.join("\n"), from, to).await?;
+        let v = self.translate(client, &query.join("\n"), from, to)?;
         Ok(TranslationVecOutput {
             text: v.text.split('\n').map(|v| v.to_string()).collect(),
             lang: v.lang,

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use async_trait::async_trait;
+use reqwest::blocking::Client;
 use reqwest::header::{ORIGIN, REFERER};
-use reqwest::Client;
 #[cfg(feature = "fetch_languages")]
 use select::document::Document;
 #[cfg(feature = "fetch_languages")]
@@ -28,18 +28,15 @@ impl Default for YoudaoTranslator {
     }
 }
 
-#[async_trait]
 #[cfg(feature = "fetch_languages")]
 impl TranslatorLanguages for YoudaoTranslator {
-    async fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
+    fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
         let se = Self::new();
         let data = client
             .get(format!("{}{}", se.host, se.home))
             .send()
-            .await
             .map_err(|e| Error::new("Failed request", e))?
             .text()
-            .await
             .map_err(|e| Error::new("Failed request", e))?;
         let mut lang_list: Vec<String> = Vec::new();
         let document = Document::from_read(data.as_bytes())
@@ -77,7 +74,7 @@ impl YoudaoTranslator {
 
 #[async_trait]
 impl TranslatorNoContext for YoudaoTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -91,7 +88,7 @@ impl TranslatorNoContext for YoudaoTranslator {
             to: String::from("Auto"),
         };
         let data =
-            serde_urlencoded::to_string(&data).map_err(|v| Error::new("Failed to serialize", v))?;
+            serde_urlencoded::to_string(data).map_err(|v| Error::new("Failed to serialize", v))?;
         let resp = client
             .post("https://aidemo.youdao.com/trans")
             .header(ORIGIN, &self.host)
@@ -103,10 +100,8 @@ impl TranslatorNoContext for YoudaoTranslator {
             )
             .body(data)
             .send()
-            .await
             .map_err(|e| Error::new("Failed request", e))?
             .text()
-            .await
             .map_err(|e| Error::new("Failed request", e))?;
         let v: Value =
             serde_json::from_str(&resp).map_err(|e| Error::new("Failed to parse json", e))?;
@@ -127,16 +122,14 @@ impl TranslatorNoContext for YoudaoTranslator {
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let v = self
-            .translate(client, &query.join("._._._."), from, to)
-            .await?;
+        let v = self.translate(client, &query.join("._._._."), from, to)?;
         Ok(TranslationVecOutput {
             text: v.text.split("._._._.").map(|v| v.to_string()).collect(),
             lang: Language::Unknown,

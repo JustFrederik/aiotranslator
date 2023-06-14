@@ -10,6 +10,7 @@ use crate::translators::translator_structure::{TranslationVecOutput, TranslatorC
 use model_manager::model_manager::ModelManager;
 use rustyctranslate2::BatchType;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub enum NllbModelType {
@@ -18,6 +19,21 @@ pub enum NllbModelType {
     DistilledSmall600M,
     Big3_3B,
     Small1_3B,
+}
+
+impl FromStr for NllbModelType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "" => Ok(Self::DistilledBig1_3B),
+            "DistilledBig1_3B" => Ok(Self::DistilledBig1_3B),
+            "DistilledSmall600M" => Ok(Self::DistilledSmall600M),
+            "Big3_3B" => Ok(Self::Big3_3B),
+            "Small1_3B" => Ok(Self::Small1_3B),
+            _ => Err(()),
+        }
+    }
 }
 
 pub struct NllbTranslator {
@@ -48,7 +64,7 @@ impl TranslatorCTranslate for NllbTranslator {
             self.model_format.is_compressed(),
         )?;
         let translated = translator
-            .translate_batch_target(tokens, None, BatchType::Example, target)
+            .translate_batch_target(tokens, None, BatchType::Example, None, target)
             .map_err(Error::new_option)?;
         let to = to.to_nllb_str()?;
         let sentences = tokenizer
@@ -66,7 +82,7 @@ impl TranslatorCTranslate for NllbTranslator {
 }
 
 impl NllbTranslator {
-    pub async fn new(
+    pub fn new(
         device: &Device,
         model_format: &ModelFormat,
         model_type: &NllbModelType,
@@ -74,8 +90,7 @@ impl NllbTranslator {
     ) -> Result<Self, Error> {
         let ident = Self::get_ident(device, model_format, model_type);
         let model = model_manager
-            .get_model_async(&ident)
-            .await
+            .get_model(&ident)
             .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
         let device = *device;
         Ok(Self {

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use model_manager::model_manager::ModelManager;
 use rustyctranslate2::BatchType;
@@ -19,6 +20,20 @@ pub enum JParaCrawlModelType {
     Base,
     #[default]
     Big,
+}
+
+impl FromStr for JParaCrawlModelType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "" => Ok(Self::Big),
+            "Small" => Ok(Self::Small),
+            "Base" => Ok(Self::Base),
+            "Big" => Ok(Self::Big),
+            _ => Err(()),
+        }
+    }
 }
 
 pub struct JParaCrawlTranslator {
@@ -62,7 +77,7 @@ impl TranslatorCTranslate for JParaCrawlTranslator {
             self.model_format.is_compressed(),
         )?;
         let translated = translator
-            .translate_batch(tokens, None, BatchType::Example)
+            .translate_batch(tokens, None, None, BatchType::Example)
             .map_err(Error::new_option)?;
         let sentences = tokenizer.detokenize(translated)?;
         translator_models.cleanup();
@@ -75,7 +90,7 @@ impl TranslatorCTranslate for JParaCrawlTranslator {
 }
 
 impl JParaCrawlTranslator {
-    pub async fn new(
+    pub fn new(
         device: &Device,
         model_format: &ModelFormat,
         model_type: &JParaCrawlModelType,
@@ -83,8 +98,7 @@ impl JParaCrawlTranslator {
     ) -> Result<Self, Error> {
         let ident = Self::get_ident(device, model_format, model_type);
         let model = model_manager
-            .get_model_async(&ident)
-            .await
+            .get_model(&ident)
             .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
         Ok(Self {
             device: *device,

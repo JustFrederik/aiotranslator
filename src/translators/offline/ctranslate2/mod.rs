@@ -18,6 +18,13 @@ impl ToString for Device {
 }
 
 impl Device {
+    pub fn gpu(y: bool) -> Self {
+        if y {
+            Device::CUDA
+        } else {
+            Device::CPU
+        }
+    }
     #[allow(dead_code)]
     fn is_cuda(&self) -> bool {
         match self {

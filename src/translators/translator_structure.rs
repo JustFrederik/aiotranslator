@@ -1,18 +1,17 @@
 use std::fmt::{Debug, Formatter};
 
-use async_trait::async_trait;
-use reqwest::Client;
+use reqwest::blocking::Client;
 
 use crate::error::Error;
 use crate::languages::Language;
 use crate::translators::context::Context;
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 use crate::translators::offline::ctranslate2::model_management::{
     CTranslateModels, TokenizerModels,
 };
 use crate::translators::tokens::Tokens;
 
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 pub trait TranslatorCTranslate {
     fn translate(
         &self,
@@ -45,9 +44,8 @@ pub trait TranslatorCTranslate {
     ) -> Result<TranslationVecOutput, Error>;
 }
 
-#[async_trait]
 pub trait TranslatorNoContext {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -55,7 +53,7 @@ pub trait TranslatorNoContext {
         to: &Language,
     ) -> Result<TranslationOutput, Error>;
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
@@ -64,19 +62,16 @@ pub trait TranslatorNoContext {
     ) -> Result<TranslationVecOutput, Error>;
 }
 
-#[async_trait]
 pub trait TranslatorLanguages {
-    async fn get_languages(client: &Client, auth: &Tokens) -> Result<Vec<String>, Error>;
+    fn get_languages(client: &Client, auth: &Tokens) -> Result<Vec<String>, Error>;
 }
 
-#[async_trait]
 pub trait DetectorApiBase {
-    async fn get_language(client: &Client, query: &str, auth: &Tokens) -> Result<Language, Error>;
+    fn get_language(client: &Client, query: &str, auth: &Tokens) -> Result<Language, Error>;
 }
 
-#[async_trait]
 pub trait TranslatorContext {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -85,7 +80,7 @@ pub trait TranslatorContext {
         context: &[Context],
     ) -> Result<TranslationOutput, Error>;
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
@@ -98,7 +93,7 @@ pub trait TranslatorContext {
 pub enum TranslatorDyn {
     WC(Box<dyn TranslatorContext>),
     NC(Box<dyn TranslatorNoContext>),
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     Of(Box<dyn TranslatorCTranslate>),
 }
 

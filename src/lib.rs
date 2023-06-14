@@ -2,55 +2,55 @@ pub mod detector;
 pub mod error;
 #[cfg(feature = "generate")]
 pub mod generator;
-mod languages;
-#[cfg(feature = "offline_req")]
-mod model_register;
+pub mod languages;
+#[cfg(feature = "ctranslate_req")]
+pub mod model_register;
 pub mod translators;
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "offline_req"))]
+    #[cfg(not(feature = "ctranslate_req"))]
     use std::collections::HashMap;
 
     use dotenv::dotenv;
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     use model_manager::model_manager::ModelManager;
-    use reqwest::Client;
+    use reqwest::blocking::Client;
 
     use crate::detector;
     use crate::detector::Detectors;
     use crate::generator::Records;
     use crate::languages::Language;
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     use crate::model_register::register;
-    #[cfg(not(feature = "offline_req"))]
+    #[cfg(not(feature = "ctranslate_req"))]
     use crate::translators::chainer::TranslatorInfo;
-    #[cfg(not(feature = "offline_req"))]
+    #[cfg(not(feature = "ctranslate_req"))]
     use crate::translators::chainer::TranslatorSelectorInfo;
-    #[cfg(not(feature = "offline_req"))]
+    #[cfg(not(feature = "ctranslate_req"))]
     use crate::translators::context::Context;
     use crate::translators::dev::{get_csv_errors, get_languages};
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     use crate::translators::offline::ctranslate2::model_management::{
         CTranslateModels, ModelLifetime, TokenizerModels,
     };
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     use crate::translators::offline::ctranslate2::Device;
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     use crate::translators::offline::m2m100::{M2M100ModelType, M2M100Translator};
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     use crate::translators::offline::ModelFormat;
     use crate::translators::scrape::papago::PapagoTranslator;
     use crate::translators::tokens::Tokens;
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     use crate::translators::translator_structure::TranslatorCTranslate;
     use crate::translators::translator_structure::TranslatorLanguages;
     use crate::translators::Translator;
-    #[cfg(not(feature = "offline_req"))]
+    #[cfg(not(feature = "ctranslate_req"))]
     use crate::translators::Translators;
 
     #[tokio::test]
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     async fn translate_offline() {
         let time = std::time::Instant::now();
         let mut mm = ModelManager::new().unwrap();
@@ -80,7 +80,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(feature = "offline_req")]
+    #[cfg(feature = "ctranslate_req")]
     async fn models() {
         //TODO: better downloader https://github.com/mattgathu/duma/tree/master
         let mut mm = ModelManager::new().unwrap();
@@ -105,10 +105,11 @@ mod tests {
         print!("{:?}", res);
     }
 
-    #[tokio::test]
-    #[cfg(not(feature = "offline_req"))]
-    async fn translate() {
+    #[test]
+    #[cfg(not(feature = "ctranslate_req"))]
+    fn translate() {
         dotenv().ok();
+
         let mut hashmap = HashMap::new();
         hashmap.insert(Language::Chinese, Translator::Papago);
         let selector = TranslatorSelectorInfo::Selective(
@@ -125,20 +126,18 @@ mod tests {
             Some(3),
             Detectors::Whatlang,
         )
-        .await
         .unwrap();
+
         let chatgpt_context = Context::ChatGPT("This is a text about ...".to_string());
         let translation = v
-            .translate("Hello world".to_string(), None, &[chatgpt_context])
-            .await
-            .unwrap();
+                .translate("Dies ist ein kurzer test der dazu da ist um zu überprüfen ob der übersetzer funtioniert.".to_string(), None, &[chatgpt_context])
+                .unwrap();
         let translations = v
             .translate_vec(
                 vec!["Hello world".to_string(), "This is a test".to_string()],
                 None,
                 &[],
             )
-            .await
             .unwrap();
         println!("{:?}, {:?}", translation, translations);
     }
@@ -152,9 +151,8 @@ mod tests {
     #[tokio::test]
     async fn add_line() {
         dotenv().ok();
-        let vv = PapagoTranslator::get_languages(&Client::new(), &Tokens::get_env().unwrap())
-            .await
-            .unwrap();
+        let vv =
+            PapagoTranslator::get_languages(&Client::new(), &Tokens::get_env().unwrap()).unwrap();
         //println!("{:?}", vv);
         let mut v = Records::new().unwrap();
         v.add_line("nllb", &vv);

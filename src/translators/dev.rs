@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use reqwest::Client;
+use reqwest::blocking::Client;
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -23,24 +23,22 @@ pub async fn get_languages(translator: &Translator, tokens: &Tokens) -> Result<V
     let client = Client::new();
     match translator {
         #[cfg(feature = "chatgpt")]
-        Translator::ChatGPT(_, _, _, _) => Ok(vec![]),
+        Translator::ChatGPT(_, _, _, _, _) => Ok(vec![]),
         #[cfg(feature = "bing-scrape")]
-        Translator::Bing => BingTranslator::get_languages(&client, tokens).await,
-        Translator::Google => GoogleTranslator::get_languages(&client, tokens).await,
+        Translator::Bing => BingTranslator::get_languages(&client, tokens),
+        Translator::Google => GoogleTranslator::get_languages(&client, tokens),
         #[cfg(feature = "deepl")]
-        Translator::Deepl => DeeplTranslator::get_languages(&client, tokens).await,
+        Translator::Deepl => DeeplTranslator::get_languages(&client, tokens),
         #[cfg(feature = "mymemory")]
-        Translator::MyMemory => MyMemoryTranslator::get_languages(&client, tokens).await,
+        Translator::MyMemory => MyMemoryTranslator::get_languages(&client, tokens),
         #[cfg(feature = "libre")]
-        Translator::LibreTranslate => {
-            LibreTranslateTranslator::get_languages(&client, tokens).await
-        }
+        Translator::LibreTranslate => LibreTranslateTranslator::get_languages(&client, tokens),
         #[cfg(feature = "papago-scrape")]
-        Translator::Papago => PapagoTranslator::get_languages(&client, tokens).await,
+        Translator::Papago => PapagoTranslator::get_languages(&client, tokens),
         #[cfg(feature = "youdao-scrape")]
-        Translator::Youdao(_) => YoudaoTranslator::get_languages(&client, tokens).await,
+        Translator::Youdao(_) => YoudaoTranslator::get_languages(&client, tokens),
         #[cfg(feature = "baidu-scrape")]
-        Translator::Baidu(_) => BaiduTranslator::get_languages(&client, tokens).await,
+        Translator::Baidu(_) => BaiduTranslator::get_languages(&client, tokens),
         Translator::EdgeGPT(_, _) => Ok(vec![]),
         #[cfg(feature = "nllb")]
         Translator::Nllb(_, _, _) => unimplemented!(),
@@ -62,9 +60,9 @@ pub async fn get_csv_errors(
     let to_str = |v: &Language| -> Result<String, Error> {
         match &translator {
             Translator::Deepl => v.to_deepl_str(),
-            Translator::ChatGPT(_, _, _, _) | Translator::EdgeGPT(_, _) => Err(Error::new_option(
-                "ChatGPT does not support language detection",
-            )),
+            Translator::ChatGPT(_, _, _, _, _) | Translator::EdgeGPT(_, _) => Err(
+                Error::new_option("ChatGPT does not support language detection"),
+            ),
             Translator::Google => v.to_google_str(),
             Translator::Bing => v.to_bing_str(),
             Translator::LibreTranslate => v.to_libretranslate_str(),
@@ -85,7 +83,7 @@ pub async fn get_csv_errors(
 
     let get_lang = |v: &str| -> Result<(), Error> {
         match &translator {
-            Translator::ChatGPT(_, _, _, _) => Err(Error::new_option(
+            Translator::ChatGPT(_, _, _, _, _) => Err(Error::new_option(
                 "ChatGPT does not support language detection",
             )),
             _ => match to_str(&Language::from_str(v)?)? == v {
@@ -96,7 +94,7 @@ pub async fn get_csv_errors(
     };
     let get_supported = match translator {
         Translator::Deepl => Language::get_supported_deepl(),
-        Translator::ChatGPT(_, _, _, _) | Translator::EdgeGPT(_, _) => vec![],
+        Translator::ChatGPT(_, _, _, _, _) | Translator::EdgeGPT(_, _) => vec![],
         Translator::Google => Language::get_supported_google(),
         Translator::Bing => Language::get_supported_bing(),
         Translator::LibreTranslate => Language::get_supported_libretranslate(),

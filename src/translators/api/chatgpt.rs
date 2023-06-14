@@ -1,10 +1,14 @@
-use async_trait::async_trait;
+use std::str::FromStr;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
 use chatgpt::client::ChatGPT;
 use chatgpt::config::{ChatGPTEngine, ModelConfiguration, OldChatGPTEngine, OldModelConfiguration};
 use chatgpt::prelude::ChatMessage;
 use chatgpt::types::{CompletionResponse, Role};
-use reqwest::{Client, Url};
-use std::str::FromStr;
+use chrono::Utc;
+use futures::executor::block_on;
+use reqwest::{blocking::Client, Url};
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -24,15 +28,33 @@ pub enum ChatGPTModel {
     GPT4,
 }
 
+impl FromStr for ChatGPTModel {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "" => Ok(Self::GPT3),
+            "GPT3" => Ok(Self::GPT3),
+            "GPT3.5-Turbo" => Ok(Self::Gpt35Turbo),
+            "GPT4" => Ok(Self::GPT4),
+            _ => Err(Error::new_option(format!(
+                "Invalid model: {}. Supported models: GPT-3, GPT-3.5-Turbo, GPT-4",
+                s
+            ))),
+        }
+    }
+}
+
 /// Translator struct that contains the request data
 #[derive(Debug, Clone)]
 pub struct ChatGPTTranslator {
     client: ChatGPT,
+    last_request: Arc<Mutex<i64>>,
+    wait_time: i64,
 }
 
-#[async_trait]
 impl TranslatorContext for ChatGPTTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -40,16 +62,14 @@ impl TranslatorContext for ChatGPTTranslator {
         to: &Language,
         context: &[Context],
     ) -> Result<TranslationOutput, Error> {
-        let v = self
-            .translate_vec(client, &[query.to_string()], from, to, context)
-            .await?;
+        let v = self.translate_vec(client, &[query.to_string()], from, to, context)?;
         Ok(TranslationOutput {
             text: v.text.join("\n"),
             lang: v.lang,
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         _: &Client,
         query: &[String],
@@ -57,18 +77,30 @@ impl TranslatorContext for ChatGPTTranslator {
         to: &Language,
         context: &[Context],
     ) -> Result<TranslationVecOutput, Error> {
+        let time = {
+            self.last_request
+                .lock()
+                .map(|v| *v)
+                .map_err(|v| Error::new("Failed to lock last request", v))
+        }?;
+        let wait = self.wait_time - (Utc::now().timestamp() - time);
+        if wait > 0 {
+            std::thread::sleep(Duration::from_secs(wait as u64));
+        }
         let con = get_gpt_context(context);
         let q_s = chatbot::generate_query(query, &to.to_name_str()?, con)?;
 
-        let response: CompletionResponse = self.client
-            .send_history(&vec![ChatMessage {
-                role: Role::System,
-                content: "You are a professional translator who will follow the required format for translation.".into(),
-            }, ChatMessage {
-                role: Role::User,
-                content: q_s,
-            }], )
-            .await.map_err(|v| Error::new("Failed to send history", v))?;
+        let response: CompletionResponse = block_on(async {
+            self.client
+                .send_history(&vec![ChatMessage {
+                    role: Role::System,
+                    content: "You are a professional translator who will follow the required format for translation.".into(),
+                }, ChatMessage {
+                    role: Role::User,
+                    content: q_s,
+                }]).await.map_err(|v| Error::new("Failed to send history", v))
+        })?;
+
         let message = response.message().content.to_string();
         chatbot::process_result(message, query)
     }
@@ -82,6 +114,7 @@ impl ChatGPTTranslator {
         proxy: &str,
         old_proxy: &str,
         temperature: f32,
+        wait_time: &Duration,
     ) -> Result<Self, Error> {
         let url = Url::from_str(match proxy {
             "" => "https://api.openai.com/v1/chat/completions",
@@ -128,6 +161,10 @@ impl ChatGPTTranslator {
             }
         }
         .map_err(|e| Error::new("Failed to initialize chatgpt", e))?;
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            last_request: Arc::new(Mutex::new(0)),
+            wait_time: wait_time.as_millis() as i64,
+        })
     }
 }

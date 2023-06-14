@@ -1,4 +1,4 @@
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 pub mod ctranslate2;
 #[cfg(feature = "jparacrawl")]
 pub mod jparacrawl;
@@ -10,13 +10,13 @@ pub mod nllb;
 pub mod sugoi;
 
 #[derive(PartialEq, Eq, Copy, Clone, Default, Debug)]
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 pub enum ModelFormat {
     #[default]
     Compact,
     Normal,
 }
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 impl ModelFormat {
     fn is_compressed(&self) -> bool {
         if self == &ModelFormat::Compact {

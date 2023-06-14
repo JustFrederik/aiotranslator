@@ -3,9 +3,8 @@ use crate::languages::Language;
 use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorNoContext,
 };
-use async_trait::async_trait;
+use reqwest::blocking::Client;
 use reqwest::header::CONTENT_TYPE;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -14,9 +13,8 @@ struct PapagoApiTranslator {
     client_secret: String,
 }
 
-#[async_trait]
 impl TranslatorNoContext for PapagoApiTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -40,10 +38,8 @@ impl TranslatorNoContext for PapagoApiTranslator {
             .header("X-Naver-Client-Secret", &self.client_secret)
             .body(serde_urlencoded::to_string(data).unwrap())
             .send()
-            .await
             .unwrap()
             .json()
-            .await
             .unwrap();
         println!("{:?}", res);
         Ok(TranslationOutput {
@@ -52,14 +48,14 @@ impl TranslatorNoContext for PapagoApiTranslator {
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> std::result::Result<TranslationVecOutput, Error> {
-        let v = self.translate(client, &query.join("\n"), from, to).await?;
+        let v = self.translate(client, &query.join("\n"), from, to)?;
         Ok(TranslationVecOutput {
             text: v.text.split('\n').map(|v| v.to_string()).collect(),
             lang: v.lang,

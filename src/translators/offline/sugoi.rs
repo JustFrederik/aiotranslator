@@ -38,7 +38,7 @@ impl TranslatorCTranslate for SugoiTranslator {
             self.model_format.is_compressed(),
         )?;
         let translated = translator
-            .translate_batch(tokens, None, BatchType::Example)
+            .translate_batch(tokens, None, None, BatchType::Example)
             .map_err(Error::new_option)?;
         let sentences = tokenizer.detokenize(translated)?;
         let sentences = Self::post_detokenize(sentences, query_split_sizes);
@@ -51,15 +51,14 @@ impl TranslatorCTranslate for SugoiTranslator {
 }
 
 impl SugoiTranslator {
-    pub async fn new(
+    pub fn new(
         device: &Device,
         model_format: &ModelFormat,
         mm: &ModelManager,
     ) -> Result<Self, Error> {
         let ident = Self::get_model_name(device, model_format);
         let model = mm
-            .get_model_async(&ident)
-            .await
+            .get_model(&ident)
             .map_err(|_| Error::new_option("couldnt get model".to_string()))?;
         Ok(Self {
             ident,

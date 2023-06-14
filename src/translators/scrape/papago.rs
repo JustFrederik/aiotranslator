@@ -1,13 +1,12 @@
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use async_trait::async_trait;
 use base64::Engine;
 use hmac::{Hmac, Mac};
 use md5::Md5;
 use regex::Regex;
+use reqwest::blocking::Client;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, ORIGIN, REFERER, USER_AGENT};
-use reqwest::Client;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -23,12 +22,11 @@ pub struct PapagoTranslator {
     host: String,
 }
 
-#[async_trait]
 #[cfg(feature = "fetch_languages")]
 impl TranslatorLanguages for PapagoTranslator {
-    async fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
+    fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
         let se = Self::new();
-        let lang_html = se.get_lang_html(client).await?;
+        let lang_html = se.get_lang_html(client)?;
         let lang_re =
             Regex::new(r#"=\{ALL:(.*?)}"#).map_err(|e| Error::new("Invalid regex pattern", e))?;
         let lang_str = lang_re
@@ -52,9 +50,8 @@ impl TranslatorLanguages for PapagoTranslator {
     }
 }
 
-#[async_trait]
 impl TranslatorNoContext for PapagoTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -62,7 +59,7 @@ impl TranslatorNoContext for PapagoTranslator {
         to: &Language,
     ) -> Result<TranslationOutput, Error> {
         let url = format!("{}/apis/n2mt/translate", self.host);
-        let auth_key = self.get_auth_key(client).await?;
+        let auth_key = self.get_auth_key(client)?;
         let device_id = uuid::Uuid::new_v4().to_string();
         let since_epoch = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -72,7 +69,7 @@ impl TranslatorNoContext for PapagoTranslator {
         let auth = self.get_auth_ppg(&url, &auth_key, &device_id, timestamp)?;
 
         let data = TranslationRequest {
-            device_id: device_id.to_string(),
+            device_id,
             text: query.to_string(),
             source: option_error(from.map(|v| v.to_papago_str()))?
                 .unwrap_or_else(|| "auto".to_string()),
@@ -86,7 +83,7 @@ impl TranslatorNoContext for PapagoTranslator {
         };
 
         let data =
-            serde_urlencoded::to_string(&data).map_err(|v| Error::new("Failed to serialize", v))?;
+            serde_urlencoded::to_string(data).map_err(|v| Error::new("Failed to serialize", v))?;
 
         let res: PapagoResponse = client
             .post(url)
@@ -104,10 +101,8 @@ impl TranslatorNoContext for PapagoTranslator {
             .header("x-apigw-partnerid", "papago")
             .body(data)
             .send()
-            .await
             .map_err(|e| Error::new("Failed to get response text", e))?
             .json()
-            .await
             .map_err(|e| Error::new("Failed to deserialze", e))?;
         Ok(TranslationOutput {
             text: res.translated_text,
@@ -115,14 +110,14 @@ impl TranslatorNoContext for PapagoTranslator {
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let v = self.translate(client, &query.join("\n"), from, to).await?;
+        let v = self.translate(client, &query.join("\n"), from, to)?;
         Ok(TranslationVecOutput {
             text: v.text.split('\n').map(|v| v.to_string()).collect(),
             lang: v.lang,
@@ -143,8 +138,8 @@ impl PapagoTranslator {
         }
     }
 
-    pub async fn get_auth_key(&self, client: &Client) -> Result<String, Error> {
-        let lang_html = self.get_lang_html(client).await?;
+    pub fn get_auth_key(&self, client: &Client) -> Result<String, Error> {
+        let lang_html = self.get_lang_html(client)?;
         let auth_key_regex =
             Regex::new(r#"AUTH_KEY:"(.*?)""#).map_err(|e| Error::new("Wrong regex pattern", e))?;
         Ok(auth_key_regex
@@ -153,14 +148,12 @@ impl PapagoTranslator {
             .to_string())
     }
 
-    pub async fn get_lang_html(&self, client: &Client) -> Result<String, Error> {
+    pub fn get_lang_html(&self, client: &Client) -> Result<String, Error> {
         let data = client
             .get(&self.host)
             .send()
-            .await
             .map_err(|e| Error::new("Failed to get response", e))?
             .text()
-            .await
             .map_err(|e| Error::new("Failed to get response text", e))?;
         let url_path_regex = Regex::new(r"/home\.(.*?)\.chunk\.js")
             .map_err(|e| Error::new("Wrong regex pattern", e))?;
@@ -170,12 +163,10 @@ impl PapagoTranslator {
             .to_string();
         let lang_detect_url = format!("{}{}", self.host, url_path);
         let lang_html = client
-            .get(&lang_detect_url)
+            .get(lang_detect_url)
             .send()
-            .await
             .map_err(|e| Error::new("Failed to get response", e))?
             .text()
-            .await
             .map_err(|e| Error::new("Failed to get response text", e))?;
         Ok(lang_html)
     }

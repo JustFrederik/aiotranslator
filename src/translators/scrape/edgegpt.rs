@@ -6,9 +6,9 @@ use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorContext,
 };
 use crate::translators::{chatbot, ConversationStyleClone};
-use async_trait::async_trait;
 use edge_gpt::{ChatSession, ConversationStyle, CookieInFile};
-use reqwest::Client;
+use futures::executor::block_on;
+use reqwest::blocking::Client;
 /// using https://github.com/acheong08/EdgeGPT
 pub struct EdgeGpt {
     cookies: Vec<CookieInFile>,
@@ -16,9 +16,8 @@ pub struct EdgeGpt {
     max_length: u32,
 }
 
-#[async_trait]
 impl TranslatorContext for EdgeGpt {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -26,16 +25,14 @@ impl TranslatorContext for EdgeGpt {
         to: &Language,
         context: &[Context],
     ) -> Result<TranslationOutput, Error> {
-        let v = self
-            .translate_vec(client, &[query.to_string()], from, to, context)
-            .await?;
+        let v = self.translate_vec(client, &[query.to_string()], from, to, context)?;
         Ok(TranslationOutput {
             text: v.text.join("\n"),
             lang: v.lang,
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         _: &Client,
         query: &[String],
@@ -45,14 +42,14 @@ impl TranslatorContext for EdgeGpt {
     ) -> Result<TranslationVecOutput, Error> {
         let con = get_gpt_context(context);
         let q_s = chatbot::generate_query(query, &to.to_name_str()?, con)?;
-        let message = self.fetch(&q_s).await?;
+        let message = self.fetch(&q_s)?;
         println!("{}", message);
         chatbot::process_result(message, query)
     }
 }
 
 impl EdgeGpt {
-    pub async fn new(
+    pub fn new(
         conversation_style_clone: &ConversationStyleClone,
         cookies: &str,
     ) -> Result<Self, Error> {
@@ -70,15 +67,18 @@ impl EdgeGpt {
         })
     }
 
-    pub async fn fetch(&self, question: &str) -> Result<String, Error> {
+    pub fn fetch(&self, question: &str) -> Result<String, Error> {
         input_limit_checker(question, self.max_length)?;
-        let mut session = ChatSession::create(self.conversation_style, &self.cookies)
-            .await
-            .map_err(|e| Error::new("Failed to create chat session", e))?;
-        let response = session
-            .send_message(question)
-            .await
-            .map_err(|e| Error::new("Failed to send message", e))?;
+        let response = block_on(async {
+            let mut session = ChatSession::create(self.conversation_style, &self.cookies)
+                .await
+                .map_err(|e| Error::new("Failed to create chat session", e))?;
+            session
+                .send_message(question)
+                .await
+                .map_err(|e| Error::new("Failed to send message", e))
+        })?;
+
         Ok(response.text)
     }
 }

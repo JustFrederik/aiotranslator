@@ -5,8 +5,7 @@ use crate::languages::Language;
 use crate::translators::translator_structure::{
     TranslationOutput, TranslationVecOutput, TranslatorNoContext,
 };
-use async_trait::async_trait;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::str::FromStr;
@@ -18,9 +17,8 @@ pub struct BaiduApiTranslator {
     key: String,
 }
 
-#[async_trait]
 impl TranslatorNoContext for BaiduApiTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
@@ -41,10 +39,8 @@ impl TranslatorNoContext for BaiduApiTranslator {
             .post(&self.url)
             .form(&form)
             .send()
-            .await
             .map_err(Error::fetch)?
             .json()
-            .await
             .map_err(Error::fetch)?;
         let resp = match resp {
             Response::Ok(v) => v,
@@ -61,14 +57,14 @@ impl TranslatorNoContext for BaiduApiTranslator {
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let v = self.translate(client, &query.join("\n"), from, to).await?;
+        let v = self.translate(client, &query.join("\n"), from, to)?;
         Ok(TranslationVecOutput {
             text: v.text.split('\n').map(|v| v.to_string()).collect(),
             lang: v.lang,

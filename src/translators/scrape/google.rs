@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use async_trait::async_trait;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde_json::Value;
 
 use crate::error::Error;
@@ -29,18 +28,15 @@ impl Default for GoogleTranslator {
     }
 }
 
-#[async_trait]
 #[cfg(feature = "fetch_languages")]
 impl TranslatorLanguages for GoogleTranslator {
-    async fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
+    fn get_languages(client: &Client, _: &Tokens) -> Result<Vec<String>, Error> {
         let se = Self::new();
         let html = client
             .get(se.host)
             .send()
-            .await
             .map_err(|e| Error::new("failed request", e))?
             .text()
-            .await
             .map_err(|e| Error::new("failed to convert request to text", e))?;
         let re = regex::Regex::new(r#"data-language-code="(.*?)""#)
             .map_err(|e| Error::new("failed regex", e))?;
@@ -58,32 +54,29 @@ impl TranslatorLanguages for GoogleTranslator {
     }
 }
 
-#[async_trait]
 impl TranslatorNoContext for GoogleTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationOutput, Error> {
-        let v = self
-            .translate_vec(client, &[query.to_string()], from, to)
-            .await?;
+        let v = self.translate_vec(client, &[query.to_string()], from, to)?;
         Ok(TranslationOutput {
             text: v.text.join("\\n"),
             lang: v.lang,
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
-        let vv = self.fetch(client, from, to, &query.join("\\n")).await?;
+        let vv = self.fetch(client, from, to, &query.join("\\n"))?;
         let language = vv
             .last()
             .ok_or_else(|| Error::new_option("No language found"))?
@@ -191,7 +184,7 @@ impl GoogleTranslator {
         }
     }
 
-    pub async fn fetch(
+    pub fn fetch(
         &self,
         client: &Client,
         from: Option<Language>,
@@ -206,38 +199,39 @@ impl GoogleTranslator {
         let v = client.post(format!("{}/_/TranslateWebserverUi/data/batchexecute?rpcids={}&bl={}&soc-app={}&soc-platform={}&soc-device={}&rt={}", self.host, self.rpcids, self.bl, self.soc_app, self.platform, self.device, self.rt))
             .header("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
             .body(data)
-            .send().await;
+            .send();
+
         let text = v
             .map_err(|e| Error::new("Request failed", e))?
             .text()
-            .await
             .map_err(|e| Error::new("Parsing response failed", e))?;
+
         let v: Vec<Vec<Value>> = serde_json::from_str(
             text.split('\n')
                 .nth(3)
                 .ok_or_else(|| Error::new_option("Output format errro"))?,
         )
         .map_err(|e| Error::new("Failed to serialize", e))?;
-        let vv: Vec<Value> = serde_json::from_str(
-            v.get(0)
-                .ok_or_else(|| Error::new_option("Output format errror"))?
-                .get(2)
-                .ok_or_else(|| Error::new_option("Output format errro"))?
-                .as_str()
-                .ok_or_else(|| Error::new_option("Output format errro"))?,
-        )
-        .map_err(|e| Error::new("Failed to serialize serde_json", e))?;
+        let str = v
+            .get(0)
+            .ok_or_else(|| Error::new_option("Output format errror"))?
+            .get(2)
+            .ok_or_else(|| Error::new_option("Output format errro"))?
+            .as_str()
+            .ok_or_else(|| Error::new_option("Output format errro"))?;
+        let vv: Vec<Value> = serde_json::from_str(str)
+            .map_err(|e| Error::new("Failed to serialize serde_json", e))?;
         Ok(vv)
     }
 
     //TODO: implement feature
-    pub async fn get_pronouciation(
+    pub fn get_pronouciation(
         &self,
         client: &Client,
         from: Option<Language>,
         text: &str,
     ) -> Result<(), Error> {
-        let vv = self.fetch(client, from, &Language::English, text).await?;
+        let vv = self.fetch(client, from, &Language::English, text)?;
         let language = vv
             .last()
             .ok_or_else(|| Error::new_option("No language found"))?

@@ -1,7 +1,7 @@
 //TODO: implement
 //url: https://translation.googleapis.com/language/translate/v2
 
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde::Serialize;
 
 #[allow(dead_code)]
@@ -40,10 +40,8 @@ impl GoogleRequest {
             .post("https://translation.googleapis.com/language/translate/v2")
             .json(self)
             .send()
-            .await
             .unwrap()
             .text()
-            .await
             .unwrap();
         println!("{}", text);
     }

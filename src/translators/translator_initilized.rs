@@ -1,7 +1,7 @@
 use log::info;
-#[cfg(feature = "offline_req")]
+#[cfg(feature = "ctranslate_req")]
 use model_manager::model_manager::ModelManager;
-use reqwest::Client;
+use reqwest::blocking::Client;
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -38,11 +38,11 @@ pub struct TranslatorInitialized {
 }
 
 impl TranslatorInitialized {
-    pub async fn new(
+    pub fn new(
         info: TranslatorInfo,
         tokens: &Tokens,
         client: &Client,
-        #[cfg(feature = "offline_req")] model_manager: &ModelManager,
+        #[cfg(feature = "ctranslate_req")] model_manager: &ModelManager,
     ) -> Result<Self, Error> {
         let data: TranslatorDyn = match &info.translator {
             Translator::Deepl => {
@@ -53,7 +53,7 @@ impl TranslatorInitialized {
                     .ok_or_else(|| Error::new_option("No deepl token"))?;
                 TranslatorDyn::NC(Box::new(DeeplTranslator::new(deepl_token)))
             }
-            Translator::ChatGPT(model, op, p, temp) => {
+            Translator::ChatGPT(model, op, p, temp, wait) => {
                 info!("Initializing chatgpt translator");
                 let chat_gpt_token = tokens
                     .gpt_token
@@ -65,6 +65,7 @@ impl TranslatorInitialized {
                     p,
                     op,
                     *temp,
+                    wait,
                 )?))
             }
             Translator::Google => {
@@ -74,7 +75,7 @@ impl TranslatorInitialized {
             Translator::Bing => {
                 info!("Initializing bing translator");
 
-                TranslatorDyn::NC(Box::new(BingTranslator::new(client).await?))
+                TranslatorDyn::NC(Box::new(BingTranslator::new(client)?))
             }
             Translator::LibreTranslate => {
                 info!("Initializing libre translator");
@@ -123,36 +124,46 @@ impl TranslatorInitialized {
             }
             Translator::EdgeGPT(csc, path) => {
                 info!("Initializing edgegpt translator");
-                TranslatorDyn::WC(Box::new(EdgeGpt::new(csc, path).await?))
+                TranslatorDyn::WC(Box::new(EdgeGpt::new(csc, path)?))
             }
             #[cfg(feature = "nllb")]
             Translator::Nllb(device, model_format, model_type) => {
                 info!("Initializing nllb translator");
-                TranslatorDyn::Of(Box::new(
-                    NllbTranslator::new(device, model_format, model_type, model_manager).await?,
-                ))
+                TranslatorDyn::Of(Box::new(NllbTranslator::new(
+                    device,
+                    model_format,
+                    model_type,
+                    model_manager,
+                )?))
             }
             #[cfg(feature = "m2m100")]
             Translator::M2M100(device, model_format, model_type) => {
                 info!("Initializing m2m100 translator");
-                TranslatorDyn::Of(Box::new(
-                    M2M100Translator::new(device, model_format, model_type, model_manager).await?,
-                ))
+                TranslatorDyn::Of(Box::new(M2M100Translator::new(
+                    device,
+                    model_format,
+                    model_type,
+                    model_manager,
+                )?))
             }
             #[cfg(feature = "jparacrawl")]
             Translator::JParaCrawl(device, model_format, model_type) => {
                 info!("Initializing jparacrawl translator");
-                TranslatorDyn::Of(Box::new(
-                    JParaCrawlTranslator::new(device, model_format, model_type, model_manager)
-                        .await?,
-                ))
+                TranslatorDyn::Of(Box::new(JParaCrawlTranslator::new(
+                    device,
+                    model_format,
+                    model_type,
+                    model_manager,
+                )?))
             }
             #[cfg(feature = "sugoi")]
             Translator::Sugoi(device, model_format) => {
                 info!("Initializing sugoi translator");
-                TranslatorDyn::Of(Box::new(
-                    SugoiTranslator::new(device, model_format, model_manager).await?,
-                ))
+                TranslatorDyn::Of(Box::new(SugoiTranslator::new(
+                    device,
+                    model_format,
+                    model_manager,
+                )?))
             }
         };
         Ok(Self {

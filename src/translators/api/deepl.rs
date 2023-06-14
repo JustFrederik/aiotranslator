@@ -1,8 +1,6 @@
-use std::str::FromStr;
-
-use async_trait::async_trait;
-use reqwest::Client;
+use reqwest::blocking::Client;
 use serde::Deserialize;
+use std::str::FromStr;
 
 use crate::error::Error;
 use crate::languages::Language;
@@ -19,10 +17,9 @@ pub struct DeeplTranslator {
     host: String,
 }
 
-#[async_trait]
 #[cfg(feature = "fetch_languages")]
 impl TranslatorLanguages for DeeplTranslator {
-    async fn get_languages(client: &Client, auth: &Tokens) -> Result<Vec<String>, Error> {
+    fn get_languages(client: &Client, auth: &Tokens) -> Result<Vec<String>, Error> {
         let response = client
             .get("https://api-free.deepl.com/v2/languages?type=source")
             .header(
@@ -36,7 +33,6 @@ impl TranslatorLanguages for DeeplTranslator {
             )
             .header("accept", "application/json")
             .send()
-            .await
             .map_err(|v| {
                 Error::new(
                     "Failed get request from https://api-free.deepl.com/v2/languages?type=source",
@@ -51,29 +47,25 @@ impl TranslatorLanguages for DeeplTranslator {
         }
         let json: Vec<DeeplLanguage> = response
             .json()
-            .await
             .map_err(|v| Error::new("Failed to deserialize", v))?;
         Ok(json.iter().map(|v| v.code.to_string()).collect())
     }
 }
 
-#[async_trait]
 impl TranslatorNoContext for DeeplTranslator {
-    async fn translate(
+    fn translate(
         &self,
         client: &Client,
         query: &str,
         from: Option<Language>,
         to: &Language,
     ) -> Result<TranslationOutput, Error> {
-        let response = self
-            .request(
-                client,
-                query,
-                option_error(from.map(|v| v.to_deepl_str()))?,
-                &to.to_deepl_str()?,
-            )
-            .await?;
+        let response = self.request(
+            client,
+            query,
+            option_error(from.map(|v| v.to_deepl_str()))?,
+            &to.to_deepl_str()?,
+        )?;
         let mut output = String::new();
         let mut language = String::new();
         for translation in response.translations {
@@ -86,7 +78,7 @@ impl TranslatorNoContext for DeeplTranslator {
         })
     }
 
-    async fn translate_vec(
+    fn translate_vec(
         &self,
         client: &Client,
         query: &[String],
@@ -94,14 +86,12 @@ impl TranslatorNoContext for DeeplTranslator {
         to: &Language,
     ) -> Result<TranslationVecOutput, Error> {
         let query = query.join("\n");
-        let response = self
-            .request(
-                client,
-                &query,
-                option_error(from.map(|v| v.to_deepl_str()))?,
-                &to.to_deepl_str()?,
-            )
-            .await?;
+        let response = self.request(
+            client,
+            &query,
+            option_error(from.map(|v| v.to_deepl_str()))?,
+            &to.to_deepl_str()?,
+        )?;
         let mut output: Vec<String> = Vec::new();
         let mut language = String::new();
         for translation in response.translations {
@@ -129,7 +119,7 @@ impl DeeplTranslator {
     }
 
     /// Fetches the data and serializes it into a struct
-    async fn request(
+    fn request(
         &self,
         client: &Client,
         query: &str,
@@ -153,7 +143,6 @@ impl DeeplTranslator {
             .form(&form);
         let response = request
             .send()
-            .await
             .map_err(|e| Error::new(format!("Failed post request to {}", self.host), e))?;
         if !response.status().is_success() {
             return Err(Error::new_option(format!(
@@ -163,7 +152,6 @@ impl DeeplTranslator {
         }
         let json: TranslationResponse = response
             .json()
-            .await
             .map_err(|e| Error::new("Failed to deserialize", e))?;
         Ok(json)
     }
